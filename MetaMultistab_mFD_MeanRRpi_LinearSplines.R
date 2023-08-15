@@ -103,7 +103,7 @@ for(i in 1:length(USI)){
     con.pi <- mean(temp$con.pi, na.rm = T)
     mean.delta.pi <- mean(temp$delta.pi, na.rm = T)
     mean.RR <- mean(temp$RR, na.rm = T)
-    mean.totRR <- mean(temp$totRR, na.rm = T)
+    mean.totRR <- mean(temp$deltabm.tot, na.rm = T)
     sum.con <- sum(temp$Con.M)
     stab.auc<-rbind(stab.auc,
                     tibble(temp[1,c(1:17)],
@@ -218,24 +218,7 @@ sector.count<- data.plot%>%
 
 
 
-ggplot(data.plot,aes(AUC.pi, AUC.RR, shape = system,color=system )) +
-  geom_point(alpha = 0.4,  size = 3) +
-  geom_vline(xintercept = 0, alpha = 0.5) +                                      
-  geom_hline(yintercept = 0, alpha = 0.5) +
-  facet_wrap(~resp.cat, scales = 'free') +
-  labs(x = expression(AUC.~Delta~'pi'), y = "AUC.RR") +  
-  theme_bw()+
-  theme(axis.title.y=element_text(size=18, face="plain", colour="black",vjust=0.3),axis.text.y=element_text(size=12,face="bold",colour="black",angle=0,hjust=0.4))+
-  theme(axis.title.x=element_text(size=18,face="plain",colour="black",vjust=0),axis.text.x=element_text(size=12,face="bold",colour="black"))+
-  theme(legend.position="bottom")+
-  theme(axis.ticks=element_line(colour="black",linewidth=1),axis.ticks.length=unit(0.3,"cm"))+
-  theme(panel.border=element_rect(colour="black",size=1.5))+
-  theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank())+
-  theme(plot.margin=unit(c(0.1,0.9,0.1,0.1),"cm"))
-ggsave(plot = last_plot(), file = here('~/Desktop/PhD/Meta_Multistab/AUCpiAUCRR_linearSplines.png'), width = 8, height = 5)
 
-
-hist(data.plot$AUC.RR)
 
 #### Community Stability from Meta-Analysis ####
 unique(communityStab$resp)
@@ -260,7 +243,7 @@ for(i in 1:length(USIc)){
                     type = c("linear"),absolutearea = TRUE)
     AUC.totRR.spline <- auc(temp$RD, temp$totRR, from = min(temp$RD, na.rm = TRUE), to = max(temp$RD, na.rm = TRUE),
                             type = c("spline"),absolutearea = TRUE)
-    mean.tot.RR <- mean(temp$tot.RR, na.rm = T)
+    mean.tot.RR <- mean(temp$totRR, na.rm = T)
     stab.auc.c<-rbind(stab.auc.c,
                       data.frame(temp[1,c(1,3)],
                                  AUC.tot.RR,mean.tot.RR,
@@ -475,6 +458,7 @@ Fdiv <- FD_ind_values%>%
   distinct(caseID,sp_richn,fdis,fmpd,fnnd,feve,fric,fspe)%>%
   left_join(., all.stab.auc, by = c('caseID')) 
 which(is.na(Fdiv$OEV))
+which(is.na(Fdiv$meanTotalRR))
 
 Fdiv$organism[Fdiv$organism == 'Cladoceran'] <- 'zooplankton'
 Fdiv$organism[Fdiv$organism == 'invertebrate'] <- 'invertebrates'
@@ -513,13 +497,13 @@ Fdiv %>%
   theme(legend.position = 'bottom')
 
 Fdiv %>%
-  select(caseID, fdis, fric, feve, sp_richn,studyID, organism, dist.cat, OEV, resp.cat,system,OrganismType) %>%
+  select(caseID, fdis, fric, feve, meanTotalRR,sp_richn,studyID, organism, dist.cat, OEV, resp.cat,system,OrganismType) %>%
   gather(c(fdis, fric, feve), key = 'Indices', value = 'IndexValue') %>%
-  ggplot(., aes(x = IndexValue, y = OEV))+
+  ggplot(., aes(x = IndexValue, y = meanTotalRR))+
   geom_hline(yintercept = 0)+
-  geom_smooth(method='lm')+
+#  geom_smooth(method='lm')+
   geom_point(size = 2, alpha = .4)+
-  labs(x = 'F Dispersion', y = 'OEV')+
+  labs(x = 'F Dispersion', y = 'meanTotalRR')+
   facet_grid(~Indices, scales = 'free_x') +
   theme_bw()+
   theme(legend.position = 'bottom')
