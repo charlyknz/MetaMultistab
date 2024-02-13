@@ -1,5 +1,7 @@
 #### R script for meta analysis ####
 
+setwd("~/Desktop/phD/Meta_Multistab")
+
 rm(list=ls())
 graphics.off()
 
@@ -12,7 +14,6 @@ library(GGally)
 library(ggpubr)
 
 #### import data ####
-setwd("~/Desktop/phD/Meta_Multistab")
 study <- read_excel("~/Desktop/phD/Meta_Multistab/MetaMultistab/Multistab_species_data_mfd.xlsx") %>%
   select(-c(35:51)) %>%
   rename(caseID = paper)
@@ -52,7 +53,7 @@ allData$Dist.M[(allData$Dist.M <0)]<-0
 response <- allData %>%
   select(caseID, studyID, spec.inf, comment.x,  system, lat, long, organism, duration, differentiation,dist.cat,open, species, species_specification,func,resp, resp.cat,DAY, RD,Con.M, Dist.M,Con.N, Dist.N)%>%
   mutate(dummyRR = Con.M + Dist.M) %>% 
- # filter(dummyRR != 0) %>%##take out those rows where biomass is 0 in both treatment (Biomass) + control (con.bio)
+  filter(dummyRR != 0) %>%##take out those rows where biomass is 0 in both treatment (Biomass) + control (con.bio)
   group_by(caseID, RD)%>%
   mutate(con.tot = sum(Con.M, na.rm = T),
          dist.tot = sum(Dist.M, na.rm = T))%>%
@@ -96,7 +97,6 @@ stab.auc <- tibble()
 
 for(i in 1:length(USI)){
   temp<-response[response$USI==USI[i], ]#creates a temporary data frame for each case
-  temp <- temp %>% drop_na(RR)
    if(dim(temp)[1]>3){#does the next step only if at least 3 data points are present
     AUC.RR<-auc(temp$RD, temp$RR,  from = min(temp$RD, na.rm = TRUE), to = max(temp$RD, na.rm = TRUE),
                 absolutearea = FALSE)
@@ -147,6 +147,7 @@ com.stab <- tibble()
 com.response <-response %>%
   distinct(caseID, studyID,  system, lat, long, organism, duration, differentiation,dist.cat,open, resp, resp.cat, RD, deltabm.tot,LRR) %>%
   mutate(Stab.metric = paste(ifelse(RD == 1, 'Recovery', ifelse(RD==0, 'Start', ''))))
+  
 
 
 ### For resistance we have to slice the first entry after the start community ##
@@ -176,7 +177,6 @@ unique(caseID)
 
 for(i in 1:length(caseID)){
   temp<-com.response[com.response$caseID==caseID[i], ]#creates a temporary data frame for each case
-  temp <- temp %>% drop_na(deltabm.tot)
   if(dim(temp)[1]>3){#does the next step only if at least 3 data points are present
     OEV<-auc(temp$RD, temp$deltabm.tot, from = min(temp$RD, na.rm = TRUE), to = max(temp$RD, na.rm = TRUE), 
                  absolutearea = TRUE)
@@ -439,17 +439,27 @@ summary(com.stab.MA.all)
 CommunityStab.MA <- distinct(com.stab.MA.all, caseID, resp.cat, OEV.MA,AUC.delatbm.tot.MA, Recov.MA, Resist.MA, CV.MA)
 #rm(com.stab.MA)
 
+
+
+####  Explore community stability ####
+## see how many studies are lacking a reported community stability and why 
+## e.g. response category, study design not identical
+
+str(data.plot)
+test.data <- left_join(data.plot, CommunityStab.MA, by = c( 'caseID', 'resp.cat'))
+rm<-filter(test.data,is.na(AUC.delatbm.tot.MA))
+unique(rm$caseID)
+unique(data.plot$caseID)
+test.data %>%
+  group_by(caseID, AUC.delatbm.tot.MA) %>%
+  mutate(meanAUC = mean(AUC.RR, na.rm = T))%>%
+ggscatter(., x = 'AUC.delatbm.tot.MA', y= 'meanAUC', cor.coef = T)
+test.data <- test.data %>%
+  ungroup()%>%
+  drop_na(AUC.delatbm.tot.MA) %>%
+  distinct(resp.cat, AUC.delatbm.tot.MA, caseID)
 #### Merge community stabilit(ies) ####
 # use community stability from Meta-Analysis; alternative: sum of individual species if community stability is not given 
-MergedComStab <- left_join(com.stab.sum,CommunityStab.MA,  by = c('caseID','resp.cat')) %>%
-  mutate(OEV = ifelse(is.na(OEV.MA), OEV, OEV.MA ),
-         Deltabm.Tot = ifelse(is.na(AUC.delatbm.tot.MA), AUC.sum.delatbm.tot, AUC.delatbm.tot.MA ),
-         Recovery = ifelse(is.na(Recov.MA), Recov, Recov.MA ),
-         Resistance = ifelse(is.na(Resist.MA), Resist, Resist.MA ),
-         CV = ifelse(is.na(CV.MA), CV, CV.MA )) %>%
-  distinct(caseID,resp.cat, OEV, Deltabm.Tot,CV,Resistance,Recovery)
-
-which(is.na(MergedComStab$OEV))
-which(is.na(MergedComStab$Deltabm.Tot))
+MergedComStab <- left_join(com.stab.sum,test.data,  by = c('caseID','resp.cat')) 
 
 write.csv(MergedComStab, file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/MergedCommunityStability.csv'))

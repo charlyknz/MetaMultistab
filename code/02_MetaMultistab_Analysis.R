@@ -9,6 +9,8 @@ library(here)
 library(cowplot)
 library(GGally)
 library(ggpubr)
+library(ggpmisc)
+
 
 #### import data ####
 
@@ -27,21 +29,16 @@ names(MergedComStab)
 
 
 #### Correlation community stability ####
-Corr.data <-ComStab%>%
-  rename(relOEV = Deltabm.Tot)%>%
-  select(caseID, resp.cat,relOEV) %>%
-  left_join(., MergedComStab)
-names(Corr.data)
-ggscatter(Corr.data,  x= 'relOEV', y = 'Deltabm.Tot', add = 'reg.line',cor.coef = TRUE)
+ggscatter(MergedComStab,  x= 'AUC.delatbm.tot.MA', y = 'AUC.sum.delatbm.tot', add = 'reg.line',cor.coef = TRUE)
 ggsave(plot= last_plot(), file = 'Correlation_MA_sum_Stability.png')
 
 #### ResponseDiversity ####
 
-source(here("~/Desktop/phD/Meta_Multistab/response-diversity-pulse-pert/R/Ross_et_al_functions.R"))
+source(here("~/Desktop/phD/Meta_Multistab/response-diversity-pulse-pert/R/0-functions/Ross_et_al_functions.R"))
 
 names(SpeciesStab)
 
-igr.pert <- SpeciesStab %>%
+realised.pert <- SpeciesStab %>%
   group_by(caseID, resp.cat) %>%
   reframe(mean_spp_deltabm = mean(AUC.RR),
             var_spp_deltabm = var(AUC.RR),
@@ -56,20 +53,33 @@ igr.pert <- SpeciesStab %>%
 
 #### Community stability and RD ####
 
-#### Merged Stability MA ####
-AllStab <- merge(igr.pert,MergedComStab, by = c('caseID', 'resp.cat')) %>%
+##### Sum CommunityStability ####
+AllStab <- merge(realised.pert,ComStab, by = c('caseID', 'resp.cat')) %>%
   filter(!str_detect(RD.metric,'abs' ))
 
 str(AllStab)
 
-AllStab %>%
-  filter(!str_detect(RD.metric,'abs' ))%>%
-ggplot(., aes ( x = RD.value, y = Deltabm.Tot))+
-  geom_point()+
-  labs(x = 'Realised Response Traits')+
-  facet_wrap(~RD.metric, scales = 'free_x')+
-  theme_bw()
-ggsave(plot=last_plot(), file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/ResponseTraits_relOEV_merged.png'), width =  6, height = 5)
+
+AllStab_wide <-  AllStab %>%
+  spread(key = RD.metric, value = RD.value)  
+mean1<- ggscatter(AllStab_wide, x = 'mean_spp_deltabm', y = 'Deltabm.Tot', 
+                  xlab = 'Mean species response trait', ylab = 'Relative OEV',
+                  add = 'reg.line', cor.coef = T, cor.method='spearman')
+mean1
+
+RD_div1<- ggscatter(AllStab_wide, x = 'RD_div', y = 'Deltabm.Tot', 
+                  xlab = 'Response divergence', ylab = 'Relative OEV',
+                  add = 'reg.line', cor.coef = T, cor.method='spearman')
+RD_div1
+
+RD_diss1<- ggscatter(AllStab_wide, x = 'RD_diss', y = 'Deltabm.Tot', 
+                    xlab = 'Response dissimilarity', ylab = 'Relative OEV',
+                    add = 'reg.line', cor.coef = T, cor.method='spearman')
+RD_diss1
+
+plot_grid(RD_div1, RD_diss1,mean1, labels = c('(a)', '(b)', '(c)'))
+ggsave(plot = last_plot(), file = here('output/Correlation_RealisedResponseTraits_Instab.png'), width = 8, height = 7)
+
 
 ### Stability Metrics ###
 AllStab %>%
