@@ -83,11 +83,13 @@ USI <- response$USI
 response <- response[order(response$RD),]
 source("/Users/charlottekunze/Desktop/phD/Meta_Multistab/myauc.R")
 
+names(response)
+
 stab.auc <- tibble()
 
 for(i in 1:length(USI)){
   temp<-response[response$USI==USI[i], ]#creates a temporary data frame for each case
-  if(dim(temp)[1]>2){#does the next step only if at least 3 data points are present
+  if(dim(temp)[1]>3){#does the next step only if at least 3 data points are present
     AUC.RR<-myauc(temp$RD, temp$RR,  from = min(temp$RD, na.rm = TRUE), to = max(temp$RD, na.rm = TRUE),
                 absolutearea = FALSE)
     AUC.pi<-myauc(temp$RD, temp$delta.pi, from = min(temp$RD, na.rm = TRUE), to = max(temp$RD, na.rm = TRUE),
@@ -150,7 +152,7 @@ ggplot(data.plot, aes(y = AUC.pi, x = AUC.pi.spline))+
   scale_y_continuous(limits = c(-3,4))+
   geom_abline(intercept = 0, slope = 1) +
   theme_bw()
-ggsave(plot = last_plot(), file = 'CorrelationAUC.pi_LinearNatural.png')
+#ggsave(plot = last_plot(), file = 'CorrelationAUC.pi_LinearNatural.png')
 
 ggplot(data.plot, aes(y = AUC.RR, x = AUC.RR.spline))+
   geom_point(size = 1.5)+
@@ -179,7 +181,7 @@ raw <-ggplot(data.plot, aes(x=AUC.pi,y=AUC.RR, col=system))+
   theme(plot.margin=unit(c(0.1,0.9,0.1,0.1),"cm"))#+
 # geom_smooth(col="black")
 raw
-ggsave(plot = raw, file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/AUC.RRdeltaPi.png'))
+ggsave(plot = raw, file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/AUC.RRdeltaPi.png'), width = 4, height = 4)
 
 #1
 raw1 <-ggplot(data.plot, aes(x=mean.delta.pi,y=mean.RR, col=system))+
@@ -197,7 +199,10 @@ raw1 <-ggplot(data.plot, aes(x=mean.delta.pi,y=mean.RR, col=system))+
   theme(plot.margin=unit(c(0.1,0.9,0.1,0.1),"cm"))#+
 # geom_smooth(col="black")
 raw1
-ggsave(plot = raw1, file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/MeanRRdeltaPi.png'))
+#ggsave(plot = raw1, file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/MeanRRdeltaPi.png'))
+
+
+
 #### COUnt SECTORS ####
 data.plot$Sector<- NA
 data.plot$Sector[data.plot$mean.delta.pi>0&data.plot$mean.RR>0]<-1
@@ -215,27 +220,116 @@ sector.count<- data.plot%>%
   ungroup()%>%
   mutate(sum = sum(N, na.rm = T),
          relN = (N/sum)*100)
+sector.count
 
 
-
-ggplot(data.plot,aes(AUC.pi, AUC.RR, shape = system,color=system )) +
+ggplot(data.plot,aes(AUC.pi, AUC.RR, color=resp.cat )) +
   geom_point(alpha = 0.4,  size = 3) +
   geom_vline(xintercept = 0, alpha = 0.5) +                                      
   geom_hline(yintercept = 0, alpha = 0.5) +
-  facet_wrap(~resp.cat, scales = 'free') +
-  labs(x = expression(AUC.~Delta~'pi'), y = "AUC.RR") +  
+  facet_wrap(~system, scales = 'free') +
+  labs(x = 'Relative Contribution to Stability', y = "Absolute Contribution to Stability", color = 'System', shape = 'System') +  
   theme_bw()+
-  theme(axis.title.y=element_text(size=18, face="plain", colour="black",vjust=0.3),axis.text.y=element_text(size=12,face="bold",colour="black",angle=0,hjust=0.4))+
-  theme(axis.title.x=element_text(size=18,face="plain",colour="black",vjust=0),axis.text.x=element_text(size=12,face="bold",colour="black"))+
+  theme(axis.title.y=element_text(size=14, face="plain", colour="black",vjust=0.3),axis.text.y=element_text(size=12,face="bold",colour="black",angle=0,hjust=0.4))+
+  theme(axis.title.x=element_text(size=14,face="plain",colour="black",vjust=0),axis.text.x=element_text(size=12,face="bold",colour="black"))+
   theme(legend.position="bottom")+
   theme(axis.ticks=element_line(colour="black",linewidth=1),axis.ticks.length=unit(0.3,"cm"))+
   theme(panel.border=element_rect(colour="black",size=1.5))+
   theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank())+
   theme(plot.margin=unit(c(0.1,0.9,0.1,0.1),"cm"))
-ggsave(plot = last_plot(), file = here('~/Desktop/PhD/Meta_Multistab/AUCpiAUCRR_linearSplines.png'), width = 8, height = 5)
+ggsave(plot = last_plot(), file = here('~/Desktop/PhD/Meta_Multistab/MetaMultistab/output/AUCpiAUCRR_system.png'), width = 8, height = 5)
 
 
 hist(data.plot$AUC.RR)
+
+#### dominance ####
+ggplot(data.plot,aes(con.pi, AUC.RR, shape = system, color=resp.cat )) +
+  geom_point(alpha = 0.4,  size = 3) +
+  geom_vline(xintercept = 0, alpha = 0.5) +                                      
+  geom_hline(yintercept = 0, alpha = 0.5) +
+  #facet_wrap(~system, scales = 'free') +
+  labs(x = 'relative dominance', y = "Absolute Contribution to Stability", color = 'System', shape = 'System') +  
+  theme_bw()+
+  theme(axis.title.y=element_text(size=14, face="plain", colour="black",vjust=0.3),axis.text.y=element_text(size=12,face="bold",colour="black",angle=0,hjust=0.4))+
+  theme(axis.title.x=element_text(size=14,face="plain",colour="black",vjust=0),axis.text.x=element_text(size=12,face="bold",colour="black"))+
+  theme(legend.position="bottom")+
+  theme(axis.ticks=element_line(colour="black",linewidth=1),axis.ticks.length=unit(0.3,"cm"))+
+  theme(panel.border=element_rect(colour="black",size=1.5))+
+  theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank())+
+  theme(plot.margin=unit(c(0.1,0.9,0.1,0.1),"cm"))
+ggsave(plot = last_plot(), file = here('~/Desktop/PhD/Meta_Multistab/MetaMultistab/output/CONpiAUCRR_system.png'), width = 8, height = 5)
+
+
+#### dominance ####
+ggplot(data.plot,aes(con.pi, AUC.pi, shape = system, color=resp.cat )) +
+  geom_point(alpha = 0.4,  size = 3) +
+  geom_vline(xintercept = 0, alpha = 0.5) +                                      
+  geom_hline(yintercept = 0, alpha = 0.5) +
+  #facet_wrap(~system, scales = 'free') +
+  labs(x = 'relative dominance', y = "Relative Contribution to Stability", color = 'System', shape = 'System') +  
+  theme_bw()+
+  theme(axis.title.y=element_text(size=14, face="plain", colour="black",vjust=0.3),axis.text.y=element_text(size=12,face="bold",colour="black",angle=0,hjust=0.4))+
+  theme(axis.title.x=element_text(size=14,face="plain",colour="black",vjust=0),axis.text.x=element_text(size=12,face="bold",colour="black"))+
+  theme(legend.position="bottom")+
+  theme(axis.ticks=element_line(colour="black",linewidth=1),axis.ticks.length=unit(0.3,"cm"))+
+  theme(panel.border=element_rect(colour="black",size=1.5))+
+  theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank())+
+  theme(plot.margin=unit(c(0.1,0.9,0.1,0.1),"cm"))
+ggsave(plot = last_plot(), file = here('~/Desktop/PhD/Meta_Multistab/MetaMultistab/output/CONpiAUCpi_system.png'), width = 8, height = 5)
+
+hist(data.plot$AUC.RR)
+
+
+
+hist(data.plot$AUC.RR)
+
+#### richness ####
+
+SR <- data.plot %>%
+  count(caseID)
+
+data.plot %>%
+  left_join(., SR) %>%
+  gather(AUC.RR, AUC.pi, key = 'metric', value = 'value') %>%
+ggplot(.,aes(n, value, shape = system, color=resp.cat )) +
+  geom_point(alpha = 0.4,  size = 3) +
+  geom_vline(xintercept = 0, alpha = 0.5) +                                      
+  geom_hline(yintercept = 0, alpha = 0.5) +
+  facet_wrap(~metric, scales = 'free') +
+  labs(x = 'S', color = 'System', shape = 'System') +  
+  theme_bw()+
+ # scale_x_continuous(trans='log')+
+  theme(axis.title.y=element_text(size=14, face="plain", colour="black",vjust=0.3),axis.text.y=element_text(size=12,face="bold",colour="black",angle=0,hjust=0.4))+
+  theme(axis.title.x=element_text(size=14,face="plain",colour="black",vjust=0),axis.text.x=element_text(size=12,face="bold",colour="black"))+
+  theme(legend.position="bottom")+
+  theme(axis.ticks=element_line(colour="black",linewidth=1),axis.ticks.length=unit(0.3,"cm"))+
+  theme(panel.border=element_rect(colour="black",size=1.5))+
+  theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank())+
+  theme(plot.margin=unit(c(0.1,0.9,0.1,0.1),"cm"))
+ggsave(plot = last_plot(), file = here('~/Desktop/PhD/Meta_Multistab/MetaMultistab/output/SRAUCs.png'), width = 8, height = 5)
+
+SR <- data.plot %>%
+  count(caseID)
+
+data.plot %>%
+  left_join(., SR) %>%
+  gather(AUC.RR, AUC.pi, key = 'metric', value = 'value') %>%
+  ggplot(.,aes(con.pi, value, shape = system, color=n )) +
+  geom_point(alpha = 0.4,  size = 3) +
+  geom_vline(xintercept = 0, alpha = 0.5) +                                      
+  geom_hline(yintercept = 0, alpha = 0.5) +
+  facet_wrap(~metric, scales = 'free') +
+  labs(x = 'relative dominance', S = 'System', shape = 'System') +  
+  theme_bw()+
+  # scale_x_continuous(trans='log')+
+  theme(axis.title.y=element_text(size=14, face="plain", colour="black",vjust=0.3),axis.text.y=element_text(size=12,face="bold",colour="black",angle=0,hjust=0.4))+
+  theme(axis.title.x=element_text(size=14,face="plain",colour="black",vjust=0),axis.text.x=element_text(size=12,face="bold",colour="black"))+
+  theme(legend.position="bottom")+
+  theme(axis.ticks=element_line(colour="black",linewidth=1),axis.ticks.length=unit(0.3,"cm"))+
+  theme(panel.border=element_rect(colour="black",size=1.5))+
+  theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank())+
+  theme(plot.margin=unit(c(0.1,0.9,0.1,0.1),"cm"))
+ggsave(plot = last_plot(), file = here('~/Desktop/PhD/Meta_Multistab/MetaMultistab/output/SR_conPI_AUCs.png'), width = 8, height = 5)
 
 #### Community Stability from Meta-Analysis ####
 unique(communityStab$resp)
@@ -255,23 +349,24 @@ names(communityStab1)
 stab.auc.c <- data.frame()
 for(i in 1:length(USIc)){
   temp<-communityStab1[communityStab1$caseID==USIc[i], ]#creates a temporary data frame for each case
-  if(dim(temp)[1]>2){#does the next step only if at least 3 data points are present
+  if(dim(temp)[1]>3){#does the next step only if at least 3 data points are present
     AUC.tot.RR<-auc(temp$RD, temp$totRR, from = min(temp$RD, na.rm = TRUE), to = max(temp$RD, na.rm = TRUE),
                     type = c("linear"),absolutearea = TRUE)
     AUC.totRR.spline <- auc(temp$RD, temp$totRR, from = min(temp$RD, na.rm = TRUE), to = max(temp$RD, na.rm = TRUE),
                             type = c("spline"),absolutearea = TRUE)
-    mean.tot.RR <- mean(temp$tot.RR, na.rm = T)
+    mean.tot.RR <- mean(temp$totRR, na.rm = T)
+    nrow <- nrow(temp)
     stab.auc.c<-rbind(stab.auc.c,
                       data.frame(temp[1,c(1,3)],
                                  AUC.tot.RR,mean.tot.RR,
-                                 AUC.totRR.spline))
+                                 AUC.totRR.spline, nrow))
     rm(temp)
   }
 }
 
 summary(stab.auc.c)
 
-communityAUC <- distinct(stab.auc.c, caseID, resp.cat, AUC.tot.RR, mean.tot.RR,AUC.totRR.spline)
+communityAUC <- distinct(stab.auc.c, caseID, resp.cat, AUC.tot.RR, mean.tot.RR,nrow, AUC.totRR.spline)
 ggplot(communityAUC, aes(x = AUC.tot.RR, y = AUC.totRR.spline))+
   geom_point(size = 1.5)+
   labs(x = 'AUC natural splines', 'AUC linear splines')+
@@ -284,12 +379,58 @@ ggplot(communityAUC, aes(x = AUC.tot.RR, y = AUC.totRR.spline))+
 lm1 <-lm(communityAUC$AUC.totRR.spline~communityAUC$AUC.tot.RR)
 summary(lm1)
 
+
+
 ## join Meta-Analysis stability values with sum of individual species if communitystab is not present ##
 all.stab.auc <- left_join(data.plot,communityAUC,  by = c('caseID','resp.cat')) %>%
   mutate(OEV = ifelse(is.na(AUC.tot.RR), AUC.totRR, AUC.tot.RR ),
          meanTotalRR = ifelse(is.na(mean.tot.RR), mean.totRR, mean.tot.RR ),) %>%
   distinct(caseID,studyID, organism, system,duration, dist.cat, open, resp.cat, OEV,meanTotalRR)
 which(is.na(all.stab.auc$OEV))
+
+#### Linear and natural splines difference ####
+str(communityAUC)
+comparison.df <- communityAUC%>%
+  merge(., data.plot, by = c('caseID','resp.cat')) %>%
+  mutate(diff = AUC.totRR.spline - AUC.tot.RR ) 
+
+which(is.na(comparison.df$diff))
+n <- count(comparison.df, nrow)
+unique(comparison.df$caseID)
+
+ggplot(comparison.df, aes(x = nrow, y = diff))+
+  geom_hline(yintercept = 1, color = 'grey', linetype = 'dashed', linewidth = 0.5)+
+  geom_hline(yintercept = 0.5, color = 'grey', linetype = 'dashed', linewidth = 0.5)+
+  geom_point()+
+  labs(x = 'observations', y = 'Difference OEV natural - linear splines')+
+  theme_bw()
+#ggsave(plot=last_plot(), file = 'DifferenceLinearNatural.png')
+
+#### ResponseDiversity ####
+names(data.plot)
+source(here("~/Desktop/phD/response-diversity-pulse-pert/R/Ross_et_al_functions.R"))
+
+igr.pert <- data.plot %>%
+  group_by(caseID) %>%
+   mutate(
+         mean_igr_effect = mean(AUC.RR),
+         var_igr_effect = var(AUC.RR),
+         RD_diss = resp_div(AUC.RR, sign_sens = FALSE),
+         RD_div = resp_div(AUC.RR, sign_sens = TRUE)) %>%
+  ungroup()%>%
+  gather(mean_igr_effect,var_igr_effect,RD_diss,RD_div, key = 'RD.metric', value = 'RD.value') %>%
+  left_join(., all.stab.auc) %>%
+  distinct(RD.metric, RD.value, OEV, meanTotalRR,caseID, studyID, system, organism, duration, dist.cat, open,
+           resp.cat)
+
+ggplot(igr.pert, aes ( x = RD.value, y = OEV))+
+  geom_point()+
+  facet_wrap(~RD.metric, scales = 'free_x')+
+  theme_bw()
+ggsave(plot=last_plot(), file = here('MetaMultistab/output/MeanIGReffect.png'), width =  6, height = 4)
+
+
+
 
 
 #### mFD - traits ####
@@ -348,7 +489,7 @@ TraitData$species<-gsub( ' ', '_',TraitData$species)
 
 sp_tr <- TraitData %>%
   ungroup()%>%
-  filter(!caseID %in%  c('CK015_6','CK015_7','CK015_8','CK015_9',"CK015_10",'CK015_20','CK015_21','CK015_22','CK015_23',
+  filter(!caseID %in%  c('CK015_5','CK015_6','CK015_7','CK015_8','CK015_9','CK015_15',"CK015_10",'CK015_20','CK015_21','CK015_22','CK015_23',
                          'CK027_1','CK027_3','CK041_1','CK041_10','CK041_11','CK041_12','CK041_2','CK041_3','CK041_4','CK041_5',
                          'CK041_6','CK041_7','CK041_8','CK041_9',
                          'HH002_1')) %>%
@@ -357,9 +498,10 @@ sp_tr <- TraitData %>%
   column_to_rownames(var = 'population') 
 sp_tr[is.na(sp_tr)] <-0
 
+
 # community matrix
 asb_sp_w <- TraitData %>%
-  filter(!caseID %in%  c('CK015_6','CK015_7','CK015_8','CK015_9',"CK015_10",'CK015_20','CK015_21','CK015_22','CK015_23',
+  filter(!caseID %in%  c('CK015_15','CK015_5','CK015_6','CK015_7','CK015_8','CK015_9',"CK015_10",'CK015_20','CK015_21','CK015_22','CK015_23',
                          'CK027_1','CK027_3','CK041_1','CK041_10','CK041_11','CK041_12','CK041_2','CK041_3','CK041_4','CK041_5',
                          'CK041_6','CK041_7','CK041_8','CK041_9',
                          'HH002_1')) %>%
@@ -414,7 +556,7 @@ big_plot <- mFD::funct.space.plot(
 
 big_plot$patchwork
 
-alpha_fd_indices <- alpha.fd.multidim( #add  mFD to standardise by global 
+alpha_fd_indices <- mFD::alpha.fd.multidim( #add  mFD to standardise by global 
   sp_faxes_coord  = fspace$"sp_faxes_coord",
   asb_sp_w         = asb_sp_w,
   ind_vect         = c("fdis", "fmpd", "fnnd", "feve", "fric",  
@@ -435,7 +577,7 @@ details_list <- alpha_fd_indices$"details"
 ## plot exemplary two caseID hypervolumina within the maximum volumina 
 plots_alpha <- mFD::alpha.multidim.plot(
   output_alpha_fd_multidim = alpha_fd_indices,
-  plot_asb_nm              = c("CK069_2",'CK001_1'),
+  plot_asb_nm              = c("HH018_1",'CK002_1'),
   ind_nm                   = c("fdis", "fide", "fnnd", "feve", "fric", 
                                "fspe"),
   faxes                    = NULL,
@@ -484,6 +626,7 @@ unique(Fdiv$organism)
 Fdiv$OrganismType <- Fdiv$organism
 Fdiv$OrganismType[Fdiv$OrganismType == 'macroalgae'] <- 'primaryproducer'
 Fdiv$OrganismType[Fdiv$OrganismType == 'phytoplankton'] <- 'primaryproducer'
+
 Fdiv$OrganismType[Fdiv$OrganismType == 'periphyton'] <- 'primaryproducer'
 Fdiv$OrganismType[Fdiv$OrganismType == 'macrophytes'] <- 'primaryproducer'
 Fdiv$OrganismType[Fdiv$OrganismType == 'plant'] <- 'primaryproducer'
@@ -496,7 +639,7 @@ Fdiv$OrganismType[Fdiv$OrganismType == 'macroinvertebrate'] <- 'predator'
 
 
 str(Fdiv)
-#write.csv(Fdiv, file = 'Output/StabFdiv.csv')
+write.csv(Fdiv, file = 'Output/StabFdiv_n4.csv')
 
 ### Plot FDiv Indices ~ Stability ###
 
@@ -504,14 +647,13 @@ Fdiv %>%
   select(caseID, fdis, fric, feve, sp_richn,studyID, organism, dist.cat, OEV, resp.cat,system,OrganismType) %>%
   gather(c(fdis, fric, feve), key = 'Indices', value = 'IndexValue') %>%
   ggplot(., aes(x = IndexValue, y = OEV))+
-  geom_hline(yintercept = 0)+
-  geom_smooth(method='lm')+
   geom_point(size = 2, alpha = .4)+
   labs(x = 'F Dispersion', y = 'OEV')+
   facet_grid(~Indices, scales = 'free_x') +
   theme_bw()+
-  theme(legend.position = 'bottom')
-
+  theme(text = element_text(size=rel(4)),
+        strip.text.x = element_text(size=rel(4)))
+ggsave(last_plot(), file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/Fdiv_overview.png'), width = 8, height = 5)
 Fdiv %>%
   select(caseID, fdis, fric, feve, sp_richn,studyID, organism, dist.cat, OEV, resp.cat,system,OrganismType) %>%
   gather(c(fdis, fric, feve), key = 'Indices', value = 'IndexValue') %>%
@@ -523,6 +665,7 @@ Fdiv %>%
   facet_grid(~Indices, scales = 'free_x') +
   theme_bw()+
   theme(legend.position = 'bottom')
+ggsave(last_plot(), file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/Fdiv.png'), width = 10, height = 5)
 
 fdis<-ggplot(Fdiv, aes(x = fdis, y = OEV))+
   geom_hline(yintercept = 0)+
@@ -564,7 +707,11 @@ plot_grid(allPlot, legend_b,rel_widths = c(1,0.3))
 ggsave(last_plot(), file = here('~/Desktop/phD/Meta_Multistab/FDiv_LinFdivAdj.png'), width = 14, height = 10)
 
 
+plot1 <- ggscatter(Fdiv, x = 'fric', y='OEV', cor.coef = T, add= 'reg.line')
+plot2 <- ggscatter(Fdiv, x = 'feve', y='OEV', cor.coef = T, add= 'reg.line')
+plot3 <- ggscatter(Fdiv, x = 'fdis', y='OEV', cor.coef = T, add= 'reg.line')
 
+plot1+plot2+plot3
 
 #### START Meta-Analysis ####
 

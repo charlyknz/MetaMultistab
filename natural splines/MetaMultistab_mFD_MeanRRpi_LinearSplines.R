@@ -179,7 +179,7 @@ raw <-ggplot(data.plot, aes(x=AUC.pi,y=AUC.RR, col=system))+
   theme(plot.margin=unit(c(0.1,0.9,0.1,0.1),"cm"))#+
 # geom_smooth(col="black")
 raw
-ggsave(plot = raw, file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/AUC.RRdeltaPi.png'))
+#ggsave(plot = raw, file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/AUC.RRdeltaPi.png'))
 
 #1
 raw1 <-ggplot(data.plot, aes(x=mean.delta.pi,y=mean.RR, col=system))+
@@ -197,7 +197,7 @@ raw1 <-ggplot(data.plot, aes(x=mean.delta.pi,y=mean.RR, col=system))+
   theme(plot.margin=unit(c(0.1,0.9,0.1,0.1),"cm"))#+
 # geom_smooth(col="black")
 raw1
-ggsave(plot = raw1, file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/MeanRRdeltaPi.png'))
+#ggsave(plot = raw1, file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/MeanRRdeltaPi.png'))
 #### COUnt SECTORS ####
 data.plot$Sector<- NA
 data.plot$Sector[data.plot$mean.delta.pi>0&data.plot$mean.RR>0]<-1
@@ -336,7 +336,7 @@ sp_tr <- TraitData %>%
                          'CK041_6','CK041_7','CK041_8','CK041_9',
                          'HH002_1')) %>%
   mutate(population = paste(species, caseID, sep = '_')) %>%
-  select(population, mean.delta.pi, mean.RR)%>%
+  select(population, AUC.pi, AUC.RR)%>%
   column_to_rownames(var = 'population') 
 sp_tr[is.na(sp_tr)] <-0
 
@@ -366,12 +366,13 @@ fspace <-mFD::tr.cont.fspace(
 fspace
 summary(fspace)
 fspace$"sp_faxes_coord"
-
+hist(TraitData$AUC.pi)
+hist(TraitData$AUC.RR)
 
 # Plot functional space
 big_plot <- mFD::funct.space.plot(
   sp_faxes_coord  = fspace$"sp_faxes_coord",
-  faxes           = c('mean.RR','mean.delta.pi'),
+  faxes           = c('AUC.RR','AUC.pi'),
   name_file       = NULL,
   faxes_nm        = NULL,
   range_faxes     = c(NA, NA),
