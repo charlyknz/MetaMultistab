@@ -447,17 +447,17 @@ CommunityStab.MA <- distinct(com.stab.MA.all, caseID, resp.cat, OEV.MA,AUC.delat
 
 str(data.plot)
 test.data <- left_join(data.plot, CommunityStab.MA, by = c( 'caseID', 'resp.cat'))
-rm<-filter(test.data,is.na(AUC.delatbm.tot.MA))
-unique(rm$caseID)
-unique(data.plot$caseID)
+
 test.data %>%
   group_by(caseID, AUC.delatbm.tot.MA) %>%
   mutate(meanAUC = mean(AUC.RR, na.rm = T))%>%
 ggscatter(., x = 'AUC.delatbm.tot.MA', y= 'meanAUC', cor.coef = T)
+
 test.data <- test.data %>%
   ungroup()%>%
   drop_na(AUC.delatbm.tot.MA) %>%
   distinct(resp.cat, AUC.delatbm.tot.MA, caseID)
+
 #### Merge community stabilit(ies) ####
 # use community stability from Meta-Analysis; alternative: sum of individual species if community stability is not given 
 MergedComStab <- left_join(com.stab.sum,test.data,  by = c('caseID','resp.cat')) 

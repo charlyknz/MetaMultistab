@@ -29,8 +29,10 @@ names(MergedComStab)
 
 
 #### Correlation community stability ####
-ggscatter(MergedComStab,  x= 'AUC.delatbm.tot.MA', y = 'AUC.sum.delatbm.tot', add = 'reg.line',cor.coef = TRUE)
-ggsave(plot= last_plot(), file = 'Correlation_MA_sum_Stability.png')
+ggscatter(MergedComStab,  x= 'AUC.delatbm.tot.MA', y = 'AUC.sum.delatbm.tot', 
+          xlab = 'reported relative OEV (MA)', ylab = 'relative OEV (Sum)',
+          add = 'reg.line',cor.coef = TRUE, cor.method = 'spearman')
+ggsave(plot= last_plot(), file = here('output/Correlation_MA_sum_Stability.png'))
 
 #### ResponseDiversity ####
 
@@ -51,15 +53,25 @@ realised.pert <- SpeciesStab %>%
   ungroup()%>%
   gather(mean_spp_deltabm,var_spp_deltabm,RD_diss,RD_div, mean_abs_spp_deltabm,var_abs_spp_deltabm,RD_abs_div,RD_abs_diss,key = 'RD.metric', value = 'RD.value') 
 
-#### Community stability and RD ####
+#### Community Stability and RD ####
 
-##### Sum CommunityStability ####
+##### Correlation - Sum Community Stability ####
 AllStab <- merge(realised.pert,ComStab, by = c('caseID', 'resp.cat')) %>%
   filter(!str_detect(RD.metric,'abs' ))
-
 str(AllStab)
 
+AllStab %>%
+  ggplot(aes(x = RD.value, y = Deltabm.Tot))+
+  geom_point()+
+  xlab('Community response traits')+
+  ylab ('Relative OEV')+
+ # stat_poly_line()+
+#  stat_poly_eq()+
+  facet_wrap(~RD.metric, scale = 'free_x')+
+  theme_bw()
+ggsave(plot = last_plot(), file = here('output/RealisedResponseTraits_Instab.png'), width = 8, height = 7)
 
+### correlation ###
 AllStab_wide <-  AllStab %>%
   spread(key = RD.metric, value = RD.value)  
 mean1<- ggscatter(AllStab_wide, x = 'mean_spp_deltabm', y = 'Deltabm.Tot', 
@@ -86,39 +98,56 @@ AllStab %>%
   filter(!str_detect(RD.metric,'abs' ))%>%
   ggplot(., aes ( x = RD.value, y = Resistance))+
   geom_point()+
-  # geom_smooth(method = lm, se =F, alpha = 0.6)+
   facet_wrap(~RD.metric, scales = 'free_x')+
   theme_bw()+
   labs(x = 'Realised Response Traits', y = 'Resistance')
-ggsave(plot=last_plot(), file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/ResponseTraits_Resist_merged.png'), width =  6, height = 5)
 
 AllStab %>%
-  filter(!str_detect(RD.metric,'abs' ))%>%
   ggplot(., aes ( x = RD.value, y = Recovery))+
   geom_point()+
-  # geom_smooth(method = lm, se =F, alpha = 0.6)+
   facet_wrap(~RD.metric, scales = 'free_x')+
   theme_bw()+
   labs(x = 'Realised Response Traits', y = 'Recovery')
-ggsave(plot=last_plot(), file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/ResponseTraits_Recov_merged.png'), width =  6, height = 5)
 
 
 AllStab %>%
   filter(!str_detect(RD.metric,'abs' ))%>%
   ggplot(., aes ( x = RD.value, y = CV))+
   geom_point()+
-  # geom_smooth(method = lm, se =F, alpha = 0.6)+
   facet_wrap(~RD.metric, scales = 'free_x')+
   theme_bw()+
   labs(x = 'Realised Response Traits', y = 'Temporal Variability (CV)')
-ggsave(plot=last_plot(), file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/ResponseTraits_CV_merged.png'), width =  6, height = 5)
 
 
-##### Merge RD and community stability from sum #####
+##### RD and MA Community Stability#####
 str(ComStab)
-AllStab1 <- merge(igr.pert,ComStab, by = c('caseID', 'resp.cat'))
+AllStab1 <- merge(realised.pert,MergedComStab, by = c('caseID', 'resp.cat')) %>%
+  filter(!str_detect(RD.metric,'abs' ))%>%
+  select(caseID, resp.cat, RD.metric, RD.value, AUC.delatbm.tot.MA ) %>%
+  spread(key = RD.metric, value = RD.value)
 str(AllStab1)
 
+mean2<- ggscatter(AllStab1, x = 'mean_spp_deltabm', y = 'AUC.delatbm.tot.MA', 
+                  xlab = 'Mean species response trait', ylab = '(reported) Relative OEV',
+                  add = 'reg.line', cor.coef = T, cor.method='spearman')
+mean2
+
+RD_div2<- ggscatter(AllStab1, x = 'RD_div', y = 'AUC.delatbm.tot.MA', 
+                    xlab = 'Response divergence', ylab = '(reported) Relative OEV',
+                    add = 'reg.line', cor.coef = T, cor.method='spearman')
+RD_div2
+
+RD_diss2<- ggscatter(AllStab1, x = 'RD_diss', y = 'AUC.delatbm.tot.MA', 
+                     xlab = 'Response dissimilarity', ylab = '(reported) Relative OEV',
+                     add = 'reg.line', cor.coef = T, cor.method='spearman')
+RD_diss2
+
+plot_grid(RD_div2, RD_diss2,mean2, labels = c('(a)', '(b)', '(c)'))
+ggsave(plot = last_plot(), file = here('output/Correlation_RealisedResponseTraits_reportedInstab.png'), width = 8, height = 7)
+
+
+
+#########
 p1 <- AllStab1 %>%
   filter(!str_detect(RD.metric,'abs' ))%>%
   ggplot(., aes ( x = RD.value, y = Deltabm.Tot))+
@@ -132,7 +161,6 @@ ggsave(plot=last_plot(), file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab
 
 #### Stability Metrics ####
 p2<-AllStab1 %>%
-  filter(!str_detect(RD.metric,'abs' ))%>%
   ggplot(., aes ( x = RD.value, y = Resistance))+
   geom_point()+
   # geom_smooth(method = lm, se =F, alpha = 0.6)+
