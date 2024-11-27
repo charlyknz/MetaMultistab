@@ -10,6 +10,7 @@ library(cowplot)
 library(GGally)
 library(ggpubr)
 library(ggpmisc)
+library(metafor)
 
 
 #### import data ####
@@ -32,7 +33,7 @@ names(MergedComStab)
 ggscatter(MergedComStab,  x= 'AUC.delatbm.tot.MA', y = 'AUC.sum.delatbm.tot', 
           xlab = 'reported relative OEV (MA)', ylab = 'relative OEV (Sum)',
           add = 'reg.line',cor.coef = TRUE, cor.method = 'spearman')
-ggsave(plot= last_plot(), file = here('output/Correlation_MA_sum_Stability.png'))
+#ggsave(plot= last_plot(), file = here('output/Correlation_MA_sum_Stability.png'))
 
 #### ResponseDiversity ####
 
@@ -55,146 +56,59 @@ realised.pert <- SpeciesStab %>%
 
 #### Community Stability and RD ####
 
-##### Correlation - Sum Community Stability ####
+##### Plot - Sum Community Stability ####
 AllStab <- merge(realised.pert,ComStab, by = c('caseID', 'resp.cat')) %>%
   filter(!str_detect(RD.metric,'abs' ))
 str(AllStab)
 
-AllStab %>%
+#label grid
+labeller <- c(mean_spp_deltabm = 'Mean Realised Response', RD_diss = 'Response Dissimilarity', RD_div = 'Response Divergence')
+
+P_Fig4a <- AllStab %>%
+  filter(!str_detect(RD.metric,'abs' ) & RD.metric == 'mean_spp_deltabm' ) %>%
   ggplot(aes(x = RD.value, y = Deltabm.Tot))+
-  geom_point()+
-  xlab('Community response traits')+
-  ylab ('Relative OEV')+
- # stat_poly_line()+
-#  stat_poly_eq()+
-  facet_wrap(~RD.metric, scale = 'free_x')+
-  theme_bw()
-ggsave(plot = last_plot(), file = here('output/RealisedResponseTraits_Instab.png'), width = 8, height = 7)
-
-### correlation ###
-AllStab_wide <-  AllStab %>%
-  spread(key = RD.metric, value = RD.value)  
-mean1<- ggscatter(AllStab_wide, x = 'mean_spp_deltabm', y = 'Deltabm.Tot', 
-                  xlab = 'Mean species response trait', ylab = 'Relative OEV',
-                  add = 'reg.line', cor.coef = T, cor.method='spearman')
-mean1
-
-RD_div1<- ggscatter(AllStab_wide, x = 'RD_div', y = 'Deltabm.Tot', 
-                  xlab = 'Response divergence', ylab = 'Relative OEV',
-                  add = 'reg.line', cor.coef = T, cor.method='spearman')
-RD_div1
-
-RD_diss1<- ggscatter(AllStab_wide, x = 'RD_diss', y = 'Deltabm.Tot', 
-                    xlab = 'Response dissimilarity', ylab = 'Relative OEV',
-                    add = 'reg.line', cor.coef = T, cor.method='spearman')
-RD_diss1
-
-plot_grid(RD_div1, RD_diss1,mean1, labels = c('(a)', '(b)', '(c)'))
-ggsave(plot = last_plot(), file = here('output/Correlation_RealisedResponseTraits_Instab.png'), width = 8, height = 7)
-
-
-### Stability Metrics ###
-AllStab %>%
-  filter(!str_detect(RD.metric,'abs' ))%>%
-  ggplot(., aes ( x = RD.value, y = Resistance))+
-  geom_point()+
-  facet_wrap(~RD.metric, scales = 'free_x')+
+  geom_hline(yintercept = 0)+  #  stat_poly_eq()+
+  geom_point(alpha = 0.8, size = 2, color = '#F8766D')+
+  labs(x = 'Mean Realised Response', y = 'OEV')+
+ # facet_wrap(~RD.metric, scale = 'free_x', labeller = labeller(RD.metric = labeller))+
   theme_bw()+
-  labs(x = 'Realised Response Traits', y = 'Resistance')
+  theme(axis.title.y=element_text(size=12, face="plain", colour="black",vjust=0.3),axis.text.y=element_text(size=10,face="plain",colour="black",angle=0,hjust=0.4))+
+  theme(axis.title.x=element_text(size=12,face="plain",colour="black",vjust=0),axis.text.x=element_text(size=10,face="plain",colour="black"))+
+  theme(legend.position = 'none')
 
-AllStab %>%
-  ggplot(., aes ( x = RD.value, y = Recovery))+
-  geom_point()+
-  facet_wrap(~RD.metric, scales = 'free_x')+
+P_Fig4a
+
+
+P_Fig4b <- AllStab %>%
+  filter(!str_detect(RD.metric,'abs' ) & RD.metric == 'RD_diss') %>%
+  ggplot(aes(x = RD.value, y = Deltabm.Tot))+
+  geom_hline(yintercept = 0)+  #  stat_poly_eq()+
+  geom_point(alpha = 0.8, size = 2, color = '#00BA38')+
+  labs(x = 'Realised Response Dissimilarity', y = 'OEV')+
+ # facet_wrap(~RD.metric, scale = 'free_x', labeller = labeller(RD.metric = labeller))+
   theme_bw()+
-  labs(x = 'Realised Response Traits', y = 'Recovery')
+  theme(axis.title.y=element_text(size=12, face="plain", colour="black",vjust=0.3),axis.text.y=element_text(size=10,face="plain",colour="black",angle=0,hjust=0.4))+
+  theme(axis.title.x=element_text(size=12,face="plain",colour="black",vjust=0),axis.text.x=element_text(size=10,face="plain",colour="black"))+
+  theme(legend.position = 'none')
 
+P_Fig4b
 
-AllStab %>%
-  filter(!str_detect(RD.metric,'abs' ))%>%
-  ggplot(., aes ( x = RD.value, y = CV))+
-  geom_point()+
-  facet_wrap(~RD.metric, scales = 'free_x')+
+P_Fig4c <- AllStab %>%
+  filter(!str_detect(RD.metric,'abs' ) & RD.metric == 'RD_div') %>%
+  ggplot(aes(x = RD.value, y = Deltabm.Tot))+
+  geom_hline(yintercept = 0)+  #  stat_poly_eq()+
+  geom_point(alpha = 0.8, size = 2, color = '#619CFF')+
+  labs(x = 'Realised Response Divergence', y = 'OEV')+
+  #facet_wrap(~RD.metric, scale = 'free_x', labeller = labeller(RD.metric = labeller))+
   theme_bw()+
-  labs(x = 'Realised Response Traits', y = 'Temporal Variability (CV)')
+  theme(axis.title.y=element_text(size=12, face="plain", colour="black",vjust=0.3),axis.text.y=element_text(size=10,face="plain",colour="black",angle=0,hjust=0.4))+
+  theme(axis.title.x=element_text(size=12,face="plain",colour="black",vjust=0),axis.text.x=element_text(size=10,face="plain",colour="black"))+
+  theme(legend.position = 'none')
+P_Fig4c
 
+plot_grid(P_Fig4a, P_Fig4b, P_Fig4c, ncol = 3, labels = c('(a)', '(b)', '(c)'))
+ggsave(plot = last_plot(), file = here('output/Fig4_RealisedResponses_OEV.png'), width = 9, height = 3)
 
-##### RD and MA Community Stability#####
-str(ComStab)
-AllStab1 <- merge(realised.pert,MergedComStab, by = c('caseID', 'resp.cat')) %>%
-  filter(!str_detect(RD.metric,'abs' ))%>%
-  select(caseID, resp.cat, RD.metric, RD.value, AUC.delatbm.tot.MA ) %>%
-  spread(key = RD.metric, value = RD.value)
-str(AllStab1)
-
-mean2<- ggscatter(AllStab1, x = 'mean_spp_deltabm', y = 'AUC.delatbm.tot.MA', 
-                  xlab = 'Mean species response trait', ylab = '(reported) Relative OEV',
-                  add = 'reg.line', cor.coef = T, cor.method='spearman')
-mean2
-
-RD_div2<- ggscatter(AllStab1, x = 'RD_div', y = 'AUC.delatbm.tot.MA', 
-                    xlab = 'Response divergence', ylab = '(reported) Relative OEV',
-                    add = 'reg.line', cor.coef = T, cor.method='spearman')
-RD_div2
-
-RD_diss2<- ggscatter(AllStab1, x = 'RD_diss', y = 'AUC.delatbm.tot.MA', 
-                     xlab = 'Response dissimilarity', ylab = '(reported) Relative OEV',
-                     add = 'reg.line', cor.coef = T, cor.method='spearman')
-RD_diss2
-
-plot_grid(RD_div2, RD_diss2,mean2, labels = c('(a)', '(b)', '(c)'))
-ggsave(plot = last_plot(), file = here('output/Correlation_RealisedResponseTraits_reportedInstab.png'), width = 8, height = 7)
-
-
-
-#########
-p1 <- AllStab1 %>%
-  filter(!str_detect(RD.metric,'abs' ))%>%
-  ggplot(., aes ( x = RD.value, y = Deltabm.Tot))+
-  geom_point()+
-  labs(x = 'Realised Response Traits', y = 'rel. OEV')+
-  facet_wrap(~RD.metric, scales = 'free_x')+
-  theme_bw()
-p1
-ggsave(plot=last_plot(), file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/ResponseTraits_relOEV_sum.png'), width =  6, height = 5)
-
-
-#### Stability Metrics ####
-p2<-AllStab1 %>%
-  ggplot(., aes ( x = RD.value, y = Resistance))+
-  geom_point()+
-  # geom_smooth(method = lm, se =F, alpha = 0.6)+
-  facet_wrap(~RD.metric, scales = 'free_x')+
-  theme_bw()+
-  labs(x = 'Realised Response Traits', y = 'Resistance')
-p2
-ggsave(plot=last_plot(), file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/ResponseTraits_Resist_sum.png'), width =  6, height = 5)
-
-p3<-AllStab1 %>%
-  filter(!str_detect(RD.metric,'abs' ))%>%
-  ggplot(., aes ( x = RD.value, y = Recovery))+
-  geom_point()+
-  # geom_smooth(method = lm, se =F, alpha = 0.6)+
-  facet_wrap(~RD.metric, scales = 'free_x')+
-  theme_bw()+
-  labs(x = 'Realised Response Traits', y = 'Recovery')
-p3
-ggsave(plot=last_plot(), file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/ResponseTraits_Recov_sum.png'), width =  6, height = 5)
-
-
-p4<-AllStab1 %>%
-  filter(!str_detect(RD.metric,'abs' ))%>%
-  ggplot(., aes ( x = RD.value, y = CV))+
-  geom_point()+
-  # geom_smooth(method = lm, se =F, alpha = 0.6)+
-  facet_wrap(~RD.metric, scales = 'free_x')+
-  theme_bw()+
-  labs(x = 'Realised Response Traits', y = 'Temporal Variability (CV)')
-p4
-ggsave(plot=last_plot(), file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/ResponseTraits_CV_sum.png'), width =  6, height = 5)
-
-plot_grid(p1, p2,p3,p4, labels = c('a)', 'b)', 'c)', 'd)'))
-ggsave(plot = last_plot(), file= here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/SumStabilityMetric.png'), width = 10, height = 10)
 
 #### START Meta-Analysis ####
 
@@ -211,7 +125,7 @@ study <- read_excel("~/Desktop/phD/Meta_Multistab/MetaMultistab/Multistab_specie
 
 metadata <- left_join(AllStab, study, by = c('caseID', 'resp.cat')) %>%
   drop_na(RD.metric) %>%
-  distinct(caseID ,studyID,duration, open, organism, system,dist.cat,resp.cat,OEV,Deltabm.Tot, RD.metric, RD.value) %>%
+  distinct(caseID ,studyID,duration, open, organism, system,dist.cat,dist,resp.cat,lat,long,OEV,Deltabm.Tot, RD.metric, RD.value) %>%
   filter(!str_detect(RD.metric, 'abs'))%>%
   spread(key = RD.metric, value = RD.value) 
 
@@ -225,77 +139,163 @@ metadata <- filter(metadata, resp.cat !=  "contribution to production")
 metadata$unweighted<-1
 names(metadata)
 
-#### Delatbm.tot ####
+
+
 #m0
 m0<-rma.mv(Deltabm.Tot,unweighted,
-                      mods = ~RD_diss+RD_div+var_spp_deltabm+mean_spp_deltabm+resp.cat,
+                      mods = ~mean_spp_deltabm+RD_diss+RD_div,
                       random = ~ 1 | caseID,
                       method="REML",data=metadata)
-summary(m0) # 188.3392
+summary(m0) 
 
-## m1
-m01<-rma.mv(Deltabm.Tot,unweighted,
-                      mods = ~RD_diss+RD_div+var_spp_deltabm+mean_spp_deltabm,
-                      random = ~ 1 | caseID,
-                      method="REML",data=metadata)
-summary(m01)#187.7341
+ModelResults <- tibble(estimate = m0$b, ci.lb = m0$ci.lb, ci.ub = m0$ci.ub, pvalue = as.numeric(m0$pval), mods = c('intercept','Mean response', 'RD dissimilarity', 'RD divergence'))
+str(ModelResults)
+ModelResults$mods[ModelResults$mods == 'RD divergence'] <- 'Divergence'
+ModelResults$mods[ModelResults$mods == 'RD dissimilarity'] <- 'Dissimilarity'
+ModelResults$mods[ModelResults$mods == 'Mean response'] <- 'Mean Response'
 
-##m2
-#remove organism, duration, resp.cat, dist.cat,open,system
-m02<-rma.mv(Deltabm.Tot,unweighted,
-                      mods = ~mean_spp_deltabm,
-                      random = ~ 1 | caseID,
-                      method="REML",data=metadata)
-summary(m02)#185.8354
+ModelResults$mods<- factor(ModelResults$mods, levels = c( 'Divergence','Dissimilarity','Mean Response','intercept' ))
 
 
-#### SUM Deltabm.tot ####
-metadata1 <- left_join(AllStab1, study, by = c('caseID', 'resp.cat')) %>%
-  drop_na(RD.metric) %>%
-  distinct(caseID ,studyID,duration, open, organism, system,dist.cat,resp.cat,OEV,Deltabm.Tot, RD.metric, RD.value) %>%
-  filter(!str_detect(RD.metric, 'abs'))%>%
-  spread(key = RD.metric, value = RD.value) 
+ModelResults %>%
+  mutate(p.value = as.numeric(paste(ifelse(pvalue <0.05, 1, 0.95)) ))%>%
+ggplot(., aes(x = estimate, y = mods, color = mods))+
+  geom_vline(xintercept = 0)+
+  geom_point(size = 4 )+
+  geom_errorbar(aes(xmin = ci.lb, xmax = ci.ub), width = .2)+
+  annotate("text", y = "Mean Response", x = 1.1, label = "*", size = 8, color = "#22292F") + 
+  scale_color_manual(values = c('#619CFF','#00BA38','#F8766D','#3b3b3b'))+
+  labs(y = '')+
+  theme_bw()+
+  theme(axis.title.y=element_text(size=14, face="plain", colour="black",vjust=0.3),axis.text.y=element_text(size=12,colour="black",angle=0,hjust=0.4),
+        axis.title.x=element_text(size=14,face="plain",colour="black",vjust=0),axis.text.x=element_text(size=12,colour="black"),
+        panel.border=element_rect(colour="black",linewidth=1.5),
+        legend.position = 'none')
+ggsave(plot=last_plot(), file = here('~/Desktop/phD/Meta_Multistab/Metamultistab/output/Forestplot_gg.pdf'), width = 6, height = 4)
 
-setdiff(AllStab1$caseID,metadata$caseID)
-unique(metadata1$caseID)
 
-metadata1 <- filter(metadata1, resp.cat !=  "contribution to production")
+### absolute oev ###
 
-# unweighted MA requires column 1
-metadata1$unweighted<-1
-names(metadata1)
+AllStab %>%
+  filter(!str_detect(RD.metric,'abs' ) & RD.metric != 'var_spp_deltabm') %>%
+  ggplot(aes(x = RD.value, y = OEV, color = RD.metric))+
+  geom_point(alpha = 0.9)+
+  labs(x = '', y = 'abs(OEV)')+
+  #  geom_hline(yintercept = 0)+  #  stat_poly_eq()+
+  facet_wrap(~RD.metric, scale = 'free_x', labeller = labeller(RD.metric = labeller))+
+  theme_bw()+
+  theme(legend.position = 'none')
 
-test.complete<-rma.mv(Deltabm.Tot,unweighted,
-                      mods = ~RD_diss+RD_div+var_spp_deltabm+mean_spp_deltabm+resp.cat,
-                      random = ~ 1 | caseID,
-                      method="REML",data=metadata1)
-summary(test.complete) #185.9527
-complete.mod<-tidy(summary(test.complete))
-complete.mod$k<-test.complete$k
-complete.mod$AIC<-test.complete$fit.stats$REML[3]
+ggsave(plot = last_plot(), file = here('output/RealisedResponseTraits_absInstab.pdf'), width = 10, height = 5)
 
-#2
-test.complete<-rma.mv(Deltabm.Tot,unweighted,
-                      mods = ~var_spp_deltabm+mean_spp_deltabm,
-                      random = ~ 1 | caseID,
-                      method="REML",data=metadata1)
-summary(test.complete)#185.6811
-complete.mod<-tidy(summary(test.complete))
-complete.mod$k<-test.complete$k
-complete.mod$AIC<-test.complete$fit.stats$REML[3]
 
-### forest ###
-forest_plot <- forest(test.complete$b, # This is our vector of two effect sizes for our 2 sub-categories
-                      ci.lb = test.complete$ci.lb, # Confidence interval lower bounds
-                      ci.ub = test.complete$ci.ub, # Confidence interval upper bounds
-                      annotate = TRUE, # This tells function to list effect size and CIs for each group on our graph
-                      xlab = "ln(Response Ratio)", # label for x-axis
-                      slab = c('intrcpt','var_spp_deltabm','mean_spp_deltabm'), #label for y-axis
-                      cex = 1, # Font size for entire graph (excluding headers)
-                      digits = 2 # Round effect size and CI to 2 digits
-)
-op <- par(cex=1, font=2) # Set up font for rest of graph (just the headers of the graph remain), to make bold headings, set font=2
-text(2.7, 3.5, "ln(Response Ratio) [95% CI]")
-text(-2.1,3.5, "Mods")
+### Stability Metrics ###
+AllStab %>%
+  filter(!str_detect(RD.metric,'abs' ))%>%
+  ggplot(., aes ( x = RD.value, y = Resistance))+
+  geom_point()+
+  facet_wrap(~RD.metric, scales = 'free_x')+
+  theme_bw()+
+  labs(x = 'Realised Response Traits', y = 'Resistance')
 
+AllStab %>%
+  filter(!str_detect(RD.metric,'abs' )) %>%
+  ggplot(., aes ( x = RD.value, y = Recovery))+
+  geom_point()+
+  facet_wrap(~RD.metric, scales = 'free_x')+
+  theme_bw()+
+  labs(x = 'Realised Response Traits', y = 'Recovery')
+
+
+AllStab %>%
+  filter(!str_detect(RD.metric,'abs' )) %>%
+  ggplot(., aes ( x = RD.value, y = CV))+
+  geom_point()+
+  facet_wrap(~RD.metric, scales = 'free_x')+
+  theme_bw()+
+  labs(x = 'Realised Response Traits', y = 'Temporal Variability (CV)')
+
+
+
+#### Appendix: Stability Metrics ####
+
+Metrics <- AllStab %>%
+  filter(!str_detect(RD.metric,'abs' ) & RD.metric != 'var_spp_deltabm')
+
+Metrics$RD.metric<- factor(Metrics$RD.metric, levels = c( 'mean_spp_deltabm','RD_diss','RD_div'))
+
+labeller <- c(mean_spp_deltabm = 'Mean Realised Response', RD_diss = 'Realised Response Dissimilarity', RD_div = 'Realised Response Divergence')
+
+p2<-Metrics %>%
+  ggplot(., aes ( y = Resistance, x = RD.value, color = RD.metric))+
+  scale_color_manual(values = c('#F8766D','#00BA38','#619CFF'))+
+  labs(x='')+
+  geom_hline(yintercept = 0)+
+  geom_point(size = 2, alpha = 0.8)+
+  facet_wrap(~RD.metric, scales='free_x', labeller = labeller(RD.metric = labeller))+
+  theme_bw()+
+  theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank())+
+  theme(legend.position = 'none')
+p2
+#ggsave(plot=last_plot(), file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/ResponseTraits_Resist_sum.png'), width =  6, height = 5)
+
+p3<-Metrics %>%
+  ggplot(., aes ( y = Recovery, x = RD.value, color = RD.metric))+
+  scale_color_manual(values = c('#F8766D','#00BA38','#619CFF'))+
+  labs(x='')+
+  geom_hline(yintercept = 0)+
+  geom_point(size = 2, alpha = 0.8)+
+  facet_wrap(~RD.metric, scales='free_x', labeller = labeller(RD.metric = labeller))+
+  theme_bw()+
+  theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank())+
+  theme(legend.position = 'none')
+p3
+
+
+p4<-Metrics %>%
+  ggplot(., aes ( y = CV, x = RD.value, color = RD.metric))+
+  scale_color_manual(values = c('#F8766D','#00BA38','#619CFF'))+
+  labs(x='')+
+  geom_hline(yintercept = 0)+
+  geom_point(size = 2, alpha = 0.8)+
+  facet_wrap(~RD.metric, scales='free_x', labeller = labeller(RD.metric = labeller))+
+  theme_bw()+
+  theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank())+
+  theme(legend.position = 'none')
+p4
+
+plot_grid(p2,p3,p4, ncol = 1, labels = c('(a)', '(b)', '(c)'))
+ggsave(plot = last_plot(), file= here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/Appendix_FigS_SumStabilityMetric.png'), width = 7, height = 8)
+
+
+
+#### MA on Absolute OEV ####
+m1<-rma.mv(OEV,unweighted,
+           mods = ~mean_spp_deltabm+RD_diss+RD_div,
+           random = ~ 1 | caseID,
+           method="REML",data=metadata)
+summary(m1) 
+
+absModelResults <- tibble(estimate = m1$b, ci.lb = m1$ci.lb, ci.ub = m1$ci.ub, pvalue = as.numeric(m1$pval), mods = c('intercept','Mean response', 'RD dissimilarity', 'RD divergence'))
+str(absModelResults)
+absModelResults$mods[absModelResults$mods == 'RD divergence'] <- 'Divergence'
+absModelResults$mods[absModelResults$mods == 'RD dissimilarity'] <- 'Dissimilarity'
+absModelResults$mods[absModelResults$mods == 'Mean response'] <- 'Mean Response'
+absModelResults$mods<- factor(absModelResults$mods, levels = c( 'intercept','Divergence','Dissimilarity','Mean Response' ))
+
+
+absModelResults %>%
+  mutate(p.value = as.numeric(paste(ifelse(pvalue <0.05, 1, 0.95)) ))%>%
+  ggplot(., aes(x = estimate, y = mods, color = mods))+
+  geom_vline(xintercept = 0)+
+  geom_point(size = 3.5 )+
+  geom_errorbar(aes(xmin = ci.lb, xmax = ci.ub), width = .2)+
+  scale_color_manual(values = c('#3b3b3b','#3b3b3b','#3b3b3b','#3b3b3b'))+
+  labs(y = '')+
+  theme_bw()+
+  theme(axis.title.y=element_text(size=14, face="plain", colour="black",vjust=0.3),axis.text.y=element_text(size=12,colour="black",angle=0,hjust=0.4),
+        axis.title.x=element_text(size=14,face="plain",colour="black",vjust=0),axis.text.x=element_text(size=12,colour="black"),
+        panel.border=element_rect(colour="black",linewidth=1.5),
+        legend.position = 'none')
+ggsave(plot=last_plot(), file = here('~/Desktop/phD/Meta_Multistab/Metamultistab/output/Forestplot_gg.pdf'), width = 6, height = 4)
 

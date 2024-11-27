@@ -51,7 +51,8 @@ allData$Con.M[(allData$Con.M <0)]<-0
 allData$Dist.M[(allData$Dist.M <0)]<-0
 
 response <- allData %>%
-  select(caseID, studyID, spec.inf, comment.x,  system, lat, long, organism, duration, differentiation,dist.cat,open, species, species_specification,func,resp, resp.cat,DAY, RD,Con.M, Dist.M,Con.N, Dist.N)%>%
+  select(caseID, studyID, spec.inf, comment.x,  system, lat, long, organism, duration, differentiation,dist.cat,open, 
+         species, species_specification,func,resp, resp.cat,DAY, RD,Con.M, Dist.M,Con.N, Dist.N, Dist.SD, Con.SD)%>%
   mutate(dummyRR = Con.M + Dist.M) %>% 
   filter(dummyRR != 0) %>%##take out those rows where biomass is 0 in both treatment (Biomass) + control (con.bio)
   group_by(caseID, RD)%>%
@@ -67,7 +68,8 @@ response <- allData %>%
   mutate(USI = paste(caseID, species,  sep = "_"))  %>%
   filter(resp.cat != "contribution to production") %>%
   distinct(caseID, studyID, spec.inf, comment.x,  system, lat, long, organism, duration, differentiation,dist.cat,open, species, species_specification,func,resp, resp.cat,DAY, RD,Con.M, Dist.M,Con.N, Dist.N,
-           deltabm.tot,LRR,RR,delta.pi,con.pi,dist.pi,USI)
+           deltabm.tot,LRR,RR,delta.pi,con.pi,dist.tot, con.tot,dist.pi,USI)
+
 
 #remove infinite values for species relative proportion delta.pi and absolute biomass response ratio rr
 response$delta.pi[is.infinite(response$delta.pi)]<-NA
@@ -84,7 +86,9 @@ which(is.na(response$dist.cat))
 
 
 #### AUC Loop species contributions ####
-USI <- response$USI
+USI <- response$USI #unique identifier
+
+#order after time steps
 response <- response[order(response$RD),]
 
 #auc function which allows us to plot predictions
@@ -106,7 +110,7 @@ for(i in 1:length(USI)){
     mean.delta.pi <- mean(temp$delta.pi, na.rm = T)
     mean.RR <- mean(temp$RR, na.rm = T)
     sum.con <- sum(temp$Con.M)
-    stab.auc<-rbind(stab.auc,
+     stab.auc<-rbind(stab.auc,
                     tibble(temp[1,c(1:17)],
                            AUC.RR ,
                            AUC.pi ,
@@ -124,30 +128,20 @@ unique(stab.auc$caseID)
 str(stab.auc)
 
 data.plot <- stab.auc %>%
-  distinct(caseID, studyID,system, organism, duration, dist.cat, open, species, resp.cat, sum.con,AUC.RR,  AUC.pi, con.pi, mean.delta.pi,mean.RR)%>%
+  distinct(caseID, studyID,system, lat, organism, duration, dist.cat, open, species, resp.cat, sum.con,AUC.RR,  AUC.pi, con.pi, mean.delta.pi,mean.RR)%>%
   filter(resp.cat %in% c('abundance', 'biomass') ) %>%
   ungroup() %>%
   drop_na(AUC.pi)%>% 
   #remove studies with less than 2 species # Note: sometimes species get removed during the AUC loop
   group_by(caseID) %>% 
   filter(n() >1)
-rm(stab.auc)
+#rm(stab.auc)
 
 names(data.plot)
 hist(data.plot$AUC.RR)
 hist(data.plot$AUC.pi)
 
-write.csv(data.plot, file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/SpeciesStabilities.csv'))
-
-#### AUC Loop:Community Stability ####
-#create empty df
-com.stab <- tibble()
-
-#remove duplicates from dataframe
-com.response <-response %>%
-  distinct(caseID, studyID,  system, lat, long, organism, duration, differentiation,dist.cat,open, resp, resp.cat, RD, deltabm.tot,LRR) %>%
-  mutate(Stab.metric = paste(ifelse(RD == 1, 'Recovery', ifelse(RD==0, 'Start', ''))))
-  
+#write.csv(data.plot, file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/SpeciesStabilities.csv'))
 
 
 ### For resistance we have to slice the first entry after the start community ##
@@ -174,6 +168,8 @@ resistance$Resist_LRR[is.infinite(resistance$Resist_LRR)]<-NA
 #create USI
 caseID <- com.response$caseID
 unique(caseID)
+
+com.stab <- tibble()
 
 for(i in 1:length(caseID)){
   temp<-com.response[com.response$caseID==caseID[i], ]#creates a temporary data frame for each case
@@ -203,31 +199,63 @@ com.stab.sum <- com.stab %>%
   distinct(caseID, resp.cat, AUC.sum.delatbm.tot,OEV,CV) %>%
   left_join(., recov) %>%
   left_join(., resistance)
+names(com.stab)
+
+#rm(com.stab)
+
+#write.csv(com.stab.sum, file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/CommunityStabilities.csv'))
+
+### variance and community stability ###
+
+spp.var <- allData%>%
+  distinct(caseID, studyID,  species, resp.cat, RD,Con.M, Dist.M,Con.N, Dist.N, Dist.SD, Con.SD)%>%
+  mutate(dummyRR = Con.M + Dist.M) %>% 
+  filter(dummyRR != 0) %>%##take out those rows where biomass is 0 in both treatment (Biomass) + control (con.bio)
+  group_by(caseID, resp.cat, species)%>%
+  reframe(Mean.Dist = mean(Dist.M,na.rm = T),
+            sd.Dist = sd(Dist.M, na.rm = T),
+            Mean.Con = mean(Con.M,na.rm = T),
+            sd.Con = sd(Con.M, na.rm = T),
+         CV.Dist= (Mean.Dist/as.numeric(sd.Dist)),
+         CV.con= (Mean.Con/as.numeric(sd.Con)),
+         Dist.N = Dist.N, 
+         Con.N = Con.N)%>%
+  mutate(lnCVR= (log(CV.Dist/CV.con) + (1/(2*(Dist.N-1)))-(1/(2*(Dist.N-1)))),
+         lnCV = NA) %>% #lnCV =  ln sd  ln mean 1 +(1/(2n-1))
+  drop_na(lnCVR)%>%
+  filter(!is.infinite(lnCVR))
+  
+varStab <- com.stab %>%
+  distinct(caseID, resp.cat, system, organism,AUC.sum.delatbm.tot,OEV,CV) %>%
+  left_join(., spp.var)
+  
+varStab$organisms <- varStab$organism
+varStab$organism[varStab$organism %in% c('macroinvertebrate', 'invertebrates','fish','vertebrates')] <- 'predator'
+varStab$organism[varStab$organism%in%c('plant','macroalgae','macrophytes','periphyton')] <- 'primaryproducer'
+varStab$organism[varStab$organism %in% c('Copepod','Cladoceran','beetle','zooplankton','meiofauna')] <- 'herbivore'
+
+varStab %>%
+   ggplot(., aes(x = lnCVR, y = AUC.sum.delatbm.tot, color = organism))+
+  geom_hline(yintercept = 0)+
+  geom_point(size = 2)+
+  facet_grid(~organism )+
+  labs(y = 'Instability (OEV)', x = 'Species variance', col = 'organism')+
+  theme_bw()+
+  theme(legend.position='bottom')
+ggsave(plot = last_plot(), file = here('lnCVR_trophy.png'), width = 8, height = 5)
 
 
-rm(com.stab)
-
-write.csv(com.stab.sum, file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/CommunityStabilities.csv'))
-
+varStab %>%
+  group_by(caseID, AUC.sum.delatbm.tot, system, organism) %>%
+  summarise(mean = mean(lnCVR)) %>%
+ggplot(., aes(x = mean, y = AUC.sum.delatbm.tot))+
+  geom_hline(yintercept = 0)+
+  geom_point()+
+  labs(y = 'Instability (OEV)', x = 'Mean species variance')+
+  theme_bw()
+ggsave(plot = last_plot(), file = here('MetaMultistab/output/Mean_lnCVR_plot.png'))
 
 ##### species plots #####
-# AUC
-raw <-ggplot(data.plot, aes(x=AUC.pi,y=AUC.RR, col=system))+
-  geom_hline(yintercept=0, colour="grey")+
-  geom_vline(xintercept=0, colour="grey")+
-  geom_point(alpha=0.4, size = 2)+
-  scale_shape_manual(values=c(16, 17,1,2,5))+
-  theme_bw()+
-  labs(x = 'Relative Contribution to Stability', y = 'Absolute Contribution to Stability', color = 'System')+
-  theme(axis.title.y=element_text(size=14, face="plain", colour="black",vjust=0.3),axis.text.y=element_text(size=12,face="bold",colour="black",angle=0,hjust=0.4))+
-  theme(axis.title.x=element_text(size=14,face="plain",colour="black",vjust=0),axis.text.x=element_text(size=12,face="bold",colour="black"))+
-  theme(legend.position="bottom")+
-  theme(axis.ticks=element_line(colour="black",linewidth =1),axis.ticks.length=unit(0.3,"cm"))+
-  theme(panel.border=element_rect(colour="black",linewidth=1.5))+
-  theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank())+
-  theme(plot.margin=unit(c(0.1,0.9,0.1,0.1),"cm"))
-raw
-ggsave(plot = raw, file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/AUC.RRdeltaPi.png'), width = 6, height = 6)
 
 #AUC for systems
 ggplot(data.plot,aes(AUC.pi, AUC.RR, color=resp.cat )) +
@@ -245,6 +273,32 @@ ggplot(data.plot,aes(AUC.pi, AUC.RR, color=resp.cat )) +
   theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank())+
   theme(plot.margin=unit(c(0.1,0.9,0.1,0.1),"cm"))
 ggsave(plot = last_plot(), file = here('~/Desktop/PhD/Meta_Multistab/MetaMultistab/output/AUCpiAUCRR_system.png'), width = 8, height = 5)
+
+
+#AUC for organism
+unique(data.plot$organism)
+
+data.plot$organisms <- data.plot$organism
+data.plot$organism[data.plot$organism %in% c('macroinvertebrate', 'invertebrates','fish','vertebrates')] <- 'predator'
+data.plot$organism[data.plot$organism%in%c('plant','macroalgae','macrophytes','periphyton')] <- 'primaryproducer'
+data.plot$organism[data.plot$organism %in% c('Copepod','Cladoceran','beetle','zooplankton','meiofauna')] <- 'herbivore'
+
+ggplot(data.plot,aes(AUC.pi, AUC.RR, color=system )) +
+  geom_point(alpha = 0.4,  size = 3) +
+  geom_vline(xintercept = 0, alpha = 0.5) +                                      
+  geom_hline(yintercept = 0, alpha = 0.5) +
+  facet_wrap(~organism, scales = 'free') +
+  labs(x = 'Relative Contribution to Stability', y = "Absolute Contribution to Stability", color = 'System', shape = 'System') +  
+  theme_bw()+
+  theme(axis.title.y=element_text(size=14, face="plain", colour="black",vjust=0.3),axis.text.y=element_text(size=12,face="bold",colour="black",angle=0,hjust=0.4))+
+  theme(axis.title.x=element_text(size=14,face="plain",colour="black",vjust=0),axis.text.x=element_text(size=12,face="bold",colour="black"))+
+  theme(legend.position="bottom")+
+  theme(axis.ticks=element_line(colour="black",linewidth=1),axis.ticks.length=unit(0.3,"cm"))+
+  theme(panel.border=element_rect(colour="black",linewidth=1.5))+
+  theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank())+
+  theme(plot.margin=unit(c(0.1,0.9,0.1,0.1),"cm"))
+ggsave(plot = last_plot(), file = here('~/Desktop/PhD/Meta_Multistab/MetaMultistab/output/AUCpiAUCRR_organismtype.png'), width = 8, height = 5)
+
 
 # Mean 
 raw1 <-ggplot(data.plot, aes(x=mean.delta.pi,y=mean.RR, col=system))+
@@ -288,7 +342,7 @@ sector.count
 
 
 ##### Species Dominance #####
-ggplot(data.plot,aes(con.pi, AUC.RR, shape = system, color=resp.cat )) +
+p1<-ggplot(data.plot,aes(con.pi, AUC.RR, shape = system, color=organism )) +
   geom_point(alpha = 0.4,  size = 3) +
   geom_hline(yintercept = 0, alpha = 0.5) +
   #facet_wrap(~system, scales = 'free') +
@@ -301,10 +355,9 @@ ggplot(data.plot,aes(con.pi, AUC.RR, shape = system, color=resp.cat )) +
   theme(panel.border=element_rect(colour="black",size=1.5))+
   theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank())+
   theme(plot.margin=unit(c(0.1,0.9,0.1,0.1),"cm"))
-#ggsave(plot = last_plot(), file = here('~/Desktop/PhD/Meta_Multistab/MetaMultistab/output/CONpiAUCRR_system.png'), width = 8, height = 5)
 
 
-ggplot(data.plot,aes(con.pi, AUC.pi, shape = system, color=resp.cat )) +
+p2<-ggplot(data.plot,aes(con.pi, AUC.pi, shape = system, color=organism )) +
   geom_point(alpha = 0.4,  size = 3) +
   geom_hline(yintercept = 0, alpha = 0.5) +
   #facet_wrap(~system, scales = 'free') +
@@ -317,14 +370,20 @@ ggplot(data.plot,aes(con.pi, AUC.pi, shape = system, color=resp.cat )) +
   theme(panel.border=element_rect(colour="black",size=1.5))+
   theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank())+
   theme(plot.margin=unit(c(0.1,0.9,0.1,0.1),"cm"))
-#ggsave(plot = last_plot(), file = here('~/Desktop/PhD/Meta_Multistab/MetaMultistab/output/CONpiAUCpi_system.png'), width = 8, height = 5)
+
+plot_grid(p1,p2,ncol = 2)
+ggsave(plot=last_plot(), file = here('~/Desktop/PhD/Meta_Multistab/MetaMultistab/output/CONpiAUC_organism.png'), width = 10, height = 5)
 
 
 ##### Species Richness #####
 
 SR <- data.plot %>%
-  count(caseID)
+  count(caseID) %>%
+  left_join(., com.stab.sum)
 
+ggscatter(SR, x = 'n', y = 'OEV', add = 'reg.line', cor.coef = T)
+
+names(com.stab.sum)
 data.plot %>%
   left_join(., SR) %>%
   gather(AUC.RR, AUC.pi, key = 'metric', value = 'value') %>%
