@@ -1,6 +1,4 @@
 #### R script for meta analysis ####
-
-rm(list=ls())
 graphics.off()
 
 library(tidyverse)
@@ -24,18 +22,7 @@ ComStab <- read_csv('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/Community
          Recovery=Recov,
          Resistance=Resist)
 
-# Merged Stability
-MergedComStab<- read_csv('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/MergedCommunityStability.csv') %>%  select(-'...1')
-names(MergedComStab)
-
-
-#### Correlation community stability ####
-ggscatter(MergedComStab,  x= 'AUC.delatbm.tot.MA', y = 'AUC.sum.delatbm.tot', 
-          xlab = 'reported relative OEV (MA)', ylab = 'relative OEV (Sum)',
-          add = 'reg.line',cor.coef = TRUE, cor.method = 'spearman')
-#ggsave(plot= last_plot(), file = here('output/Correlation_MA_sum_Stability.png'))
-
-#### ResponseDiversity ####
+#### Response Diversity ####
 
 source(here("~/Desktop/phD/Meta_Multistab/response-diversity-pulse-pert/R/0-functions/Ross_et_al_functions.R"))
 
@@ -107,7 +94,7 @@ P_Fig4c <- AllStab %>%
 P_Fig4c
 
 plot_grid(P_Fig4a, P_Fig4b, P_Fig4c, ncol = 3, labels = c('(a)', '(b)', '(c)'))
-ggsave(plot = last_plot(), file = here('output/Fig4_RealisedResponses_OEV.png'), width = 10, height = 3.5)
+ggsave(plot = last_plot(), file = here('MetaMultistab/output/Fig4_RealisedResponses_OEV.png'), width = 10, height = 3.5)
 
 
 #### START Meta-Analysis ####
@@ -119,19 +106,14 @@ library(broom)
 ## look at Effect sizes 
 summary(AllStab)
 names(AllStab)
-study <- read_excel("~/Desktop/phD/Meta_Multistab/MetaMultistab/Multistab_species_data_mfd.xlsx") %>%
-  select(-c(35:51)) %>%
-  rename(caseID = paper)
 
-metadata <- left_join(AllStab, study, by = c('caseID', 'resp.cat')) %>%
-  drop_na(RD.metric) %>%
-  distinct(caseID ,studyID,duration, open, organism, system,dist.cat,dist,resp.cat,lat,long,OEV,Deltabm.Tot, RD.metric, RD.value) %>%
+metadata <- AllStab %>%
   filter(!str_detect(RD.metric, 'abs'))%>%
   spread(key = RD.metric, value = RD.value) 
 
 setdiff(AllStab$caseID,metadata$caseID)
 hist(metadata$OEV)
-unique(metadata$caseID)
+unique(metadata$studyID)
 
 metadata <- filter(metadata, resp.cat !=  "contribution to production")
 
@@ -173,47 +155,6 @@ ggplot(., aes(x = estimate, y = mods, color = mods))+
         legend.position = 'none')
 ggsave(plot=last_plot(), file = here('~/Desktop/phD/Meta_Multistab/Metamultistab/output/Forestplot_gg.pdf'), width = 6, height = 4)
 
-
-### absolute oev ###
-
-AllStab %>%
-  filter(!str_detect(RD.metric,'abs' ) & RD.metric != 'var_spp_deltabm') %>%
-  ggplot(aes(x = RD.value, y = OEV, color = RD.metric))+
-  geom_point(alpha = 0.9)+
-  labs(x = '', y = 'abs(OEV)')+
-  #  geom_hline(yintercept = 0)+  #  stat_poly_eq()+
-  facet_wrap(~RD.metric, scale = 'free_x', labeller = labeller(RD.metric = labeller))+
-  theme_bw()+
-  theme(legend.position = 'none')
-
-ggsave(plot = last_plot(), file = here('output/RealisedResponseTraits_absInstab.pdf'), width = 10, height = 5)
-
-
-### Stability Metrics ###
-AllStab %>%
-  filter(!str_detect(RD.metric,'abs' ))%>%
-  ggplot(., aes ( x = RD.value, y = Resistance))+
-  geom_point()+
-  facet_wrap(~RD.metric, scales = 'free_x')+
-  theme_bw()+
-  labs(x = 'Realised Response Traits', y = 'Resistance')
-
-AllStab %>%
-  filter(!str_detect(RD.metric,'abs' )) %>%
-  ggplot(., aes ( x = RD.value, y = Recovery))+
-  geom_point()+
-  facet_wrap(~RD.metric, scales = 'free_x')+
-  theme_bw()+
-  labs(x = 'Realised Response Traits', y = 'Recovery')
-
-
-AllStab %>%
-  filter(!str_detect(RD.metric,'abs' )) %>%
-  ggplot(., aes ( x = RD.value, y = CV))+
-  geom_point()+
-  facet_wrap(~RD.metric, scales = 'free_x')+
-  theme_bw()+
-  labs(x = 'Realised Response Traits', y = 'Temporal Variability (CV)')
 
 
 
@@ -268,34 +209,4 @@ plot_grid(p2,p3,p4, ncol = 1, labels = c('(a)', '(b)', '(c)'))
 ggsave(plot = last_plot(), file= here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/Appendix_FigS_SumStabilityMetric.png'), width = 7, height = 8)
 
 
-
-#### MA on Absolute OEV ####
-m1<-rma.mv(OEV,unweighted,
-           mods = ~mean_spp_deltabm+RD_diss+RD_div,
-           random = ~ 1 | caseID,
-           method="REML",data=metadata)
-summary(m1) 
-
-absModelResults <- tibble(estimate = m1$b, ci.lb = m1$ci.lb, ci.ub = m1$ci.ub, pvalue = as.numeric(m1$pval), mods = c('intercept','Mean response', 'RD dissimilarity', 'RD divergence'))
-str(absModelResults)
-absModelResults$mods[absModelResults$mods == 'RD divergence'] <- 'Divergence'
-absModelResults$mods[absModelResults$mods == 'RD dissimilarity'] <- 'Dissimilarity'
-absModelResults$mods[absModelResults$mods == 'Mean response'] <- 'Mean Response'
-absModelResults$mods<- factor(absModelResults$mods, levels = c( 'intercept','Divergence','Dissimilarity','Mean Response' ))
-
-
-absModelResults %>%
-  mutate(p.value = as.numeric(paste(ifelse(pvalue <0.05, 1, 0.95)) ))%>%
-  ggplot(., aes(x = estimate, y = mods, color = mods))+
-  geom_vline(xintercept = 0)+
-  geom_point(size = 3.5 )+
-  geom_errorbar(aes(xmin = ci.lb, xmax = ci.ub), width = .2)+
-  scale_color_manual(values = c('#3b3b3b','#3b3b3b','#3b3b3b','#3b3b3b'))+
-  labs(y = '')+
-  theme_bw()+
-  theme(axis.title.y=element_text(size=14, face="plain", colour="black",vjust=0.3),axis.text.y=element_text(size=12,colour="black",angle=0,hjust=0.4),
-        axis.title.x=element_text(size=14,face="plain",colour="black",vjust=0),axis.text.x=element_text(size=12,colour="black"),
-        panel.border=element_rect(colour="black",linewidth=1.5),
-        legend.position = 'none')
-ggsave(plot=last_plot(), file = here('~/Desktop/phD/Meta_Multistab/Metamultistab/output/Forestplot_gg.pdf'), width = 6, height = 4)
 

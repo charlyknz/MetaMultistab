@@ -1,8 +1,5 @@
 #### R script for meta analysis ####
 
-rm(list=ls())
-graphics.off()
-
 library(tidyverse)
 library(readxl)
 library(here)
