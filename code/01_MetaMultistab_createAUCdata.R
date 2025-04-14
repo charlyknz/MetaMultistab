@@ -1,4 +1,4 @@
-#### R script for meta analysis ####
+#### R script: data wrangling for meta analysis ####
 
 library(tidyverse)
 library(readxl)
@@ -9,11 +9,11 @@ library(GGally)
 library(ggpubr)
 
 #### import data ####
-study <- read_excel("~/Desktop/phD/Meta_Multistab/MetaMultistab/Data/Multistab_species_data.xlsx") %>%
-  select(-c(35:51)) 
+study <- read_excel("Data/Multistab_species_data.xlsx") %>%
+  select(-c(35)) 
 names(study)
 
-rawData <- read_excel("~/Desktop/phD/Meta_Multistab/MetaMultistab/Multistab_species_data_mfd.xlsx", 
+rawData <- read_excel("Data/Multistab_species_data.xlsx", 
                       sheet = "species data")
 
 allData <- study%>%
@@ -24,9 +24,6 @@ allData <- study%>%
 
 which(is.na(allData$Con.M))
 
-communityStab <- read_excel("~/Desktop/phD/Meta_Multistab/MetaMultistab/Multistab_species_data_mfd.xlsx", 
-                            sheet = "communityFunction") %>%
-  select(caseID, totRR, resp, DAY, RD, RESIST, RESIL, RECOV)
 
 # test if all data are imported correctly
 unique(rawData$caseID)
@@ -77,7 +74,7 @@ which(is.na(response$resp.cat))
 which(is.na(response$dist.cat))
 
 
-#### AUC Loop species contributions ####
+#### AUC Loop species stability ####
 USI <- response$USI #unique identifier
 
 #order after time steps
@@ -111,7 +108,7 @@ for(i in 1:length(USI)){
   }
 }
 
-### remove duplicates ###
+### check output ###
 unique(stab.auc$caseID)
 str(stab.auc)
 
@@ -129,80 +126,81 @@ names(data.plot)
 hist(data.plot$AUC.RR)
 hist(data.plot$AUC.pi)
 
-#write.csv(data.plot, file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/SpeciesStabilities.csv'))
+write_csv(data.plot, file = here('Data/SpeciesStabilities.csv'))
 
 
 
-#### AUC Loop Community Stability MA data ####
-unique(communityStab$resp)
+#### AUC Loop Community Stability data ####
+names(response)
+unique(response$caseID)
 
-communityStab1<- communityStab %>%
-  filter(!resp %in% c('production', 'respiration')) %>%
-  drop_na(totRR) %>%
-  rename(resp.cat = resp)%>%
-  mutate(Stab.metric = paste(ifelse(RD == 1, 'Recovery', ifelse(RD==0, 'Start', ''))))
+communityStab1<- response %>%
+  distinct(caseID,duration,DAY,RD,resp.cat,deltabm.tot)%>%
+  drop_na(deltabm.tot) 
 
 communityStab1$resp.cat[communityStab1$resp.cat == 'cover'] <-'biomass'
 
 ## create USI to run loop
-USIc <- communityStab1$caseID
+USIc <- unique(communityStab1$caseID)
 names(communityStab1)
 
 #empty df
-com.stab.MA <- data.frame()
+com.stab <- data.frame()
 
 for(i in 1:length(USIc)){
   temp<-communityStab1[communityStab1$caseID==USIc[i], ]#creates a temporary data frame for each case
   if(dim(temp)[1]>3){#does the next step only if at least 3 data points are present
-    OEV.MA<-auc(temp$RD, temp$totRR, from = min(temp$RD, na.rm = TRUE), to = max(temp$RD, na.rm = TRUE),
+    OEV<-auc(temp$RD, temp$deltabm.tot, from = min(temp$RD, na.rm = TRUE), to = max(temp$RD, na.rm = TRUE),
                     type = c("linear"),absolutearea = TRUE)
-    AUC.delatbm.tot.MA  <-auc(temp$RD, temp$totRR, from = min(temp$RD, na.rm = TRUE), to = max(temp$RD, na.rm = TRUE),
+    AUC.delatbm.tot  <-auc(temp$RD, temp$deltabm.tot, from = min(temp$RD, na.rm = TRUE), to = max(temp$RD, na.rm = TRUE),
                                type = c("linear"),absolutearea = FALSE)
-    CV.MA<- mean(temp$totRR, na.rm = T)/sd(temp$totRR, na.rm = T) # coefficient of variation
-    com.stab.MA<-rbind(com.stab.MA,
-                      data.frame(temp[1,c(1,3)],
-                                 OEV.MA,CV.MA,AUC.delatbm.tot.MA))
+    CV<- mean(temp$deltabm.tot, na.rm = T)/sd(temp$deltabm.tot, na.rm = T) # coefficient of variation
+    com.stab<-rbind(com.stab,
+                      data.frame(temp[1,c(1)],
+                                 OEV,CV,AUC.delatbm.tot))
     rm(temp)
   }
 }
-str(com.stab.MA)
+str(com.stab)
+unique(com.stab$caseID)
+
+#### Stability metrics community ####
+StabMetrics <- communityStab1 %>%
+  select(caseID, DAY, RD, deltabm.tot) 
 
 ### For resistance we have to slice the first entry after the start community ##
 # as sometimes we dont have information on the start community, we will split the two df 
-resist1 <- communityStab1%>%
+resist1 <- StabMetrics%>%
+  arrange(caseID, RD) %>%
   group_by(caseID) %>%
-  filter('Start' %in% Stab.metric) %>%
+  slice(1) %>%
+  filter(RD != 0)
+  
+resist2 <- StabMetrics%>%
+  filter(RD == 0)%>%
+  distinct(caseID) %>%
+  left_join(.,StabMetrics)%>%
   arrange(caseID, RD) %>%
   group_by(caseID) %>%
   slice(2)
 
-resistance.MA <- communityStab1%>%
-  group_by(caseID) %>%
-  filter(!'Start' %in% Stab.metric) %>%
-  arrange(caseID, RD) %>%
-  group_by(caseID) %>%
-  slice(1) %>%
-  bind_rows(., resist1) %>%
-  rename(Resist.MA = totRR) %>%
-  select(caseID, resp.cat, Resist.MA)
+resistance <- resist1%>%
+  bind_rows(., resist2) %>%
+  rename(Resist = deltabm.tot) %>%
+  select(caseID, Resist)
 
 #recovery
 recov.MA <- communityStab1 %>%
   filter(RD == 1) %>%
-  rename(Recov.MA = totRR) %>%
-  distinct(caseID, resp.cat,Recov.MA)
+  rename(Recov = deltabm.tot) %>%
+  distinct(caseID,Recov)
 
-com.stab.MA.all <- com.stab.MA %>%
-  distinct(caseID, resp.cat, AUC.delatbm.tot.MA,OEV.MA,CV.MA) %>%
-  left_join(., recov.MA) %>%
-  left_join(., resistance.MA)
-
-
+com.stab.MA.all <- recov.MA %>%
+  left_join(., resistance) %>%
+  right_join(., com.stab) 
+  
 summary(com.stab.MA.all)
 
-#remove duplicates (if there are any)
-CommunityStab.MA <- distinct(com.stab.MA.all, caseID, resp.cat, OEV.MA,AUC.delatbm.tot.MA, Recov.MA, Resist.MA, CV.MA)
 
-#write_csv(CommunityStab.MA, file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/CommunityStabilities.csv'))
-  
+write_csv(com.stab.MA.all, file = here('Data/CommunityStabilities.csv'))
 

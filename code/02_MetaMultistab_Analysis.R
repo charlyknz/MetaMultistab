@@ -2,7 +2,7 @@
 graphics.off()
 
 library(tidyverse)
-library(readxl)
+library(broom)
 library(here)
 library(cowplot)
 library(GGally)
@@ -14,12 +14,11 @@ library(metafor)
 #### import data ####
 
 # species stability
-SpeciesStab <- read_csv('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/SpeciesStabilities.csv')%>%  select(-'...1')
+SpeciesStab <- read_csv('Data/SpeciesStabilities.csv')
 
 # community stability
-ComStab <- read_csv('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/CommunityStabilities.csv')%>%  select(-'...1') %>%
-  rename(Deltabm.Tot = AUC.sum.delatbm.tot,
-         Recovery=Recov,
+ComStab <- read_csv('Data/CommunityStabilities.csv')%>%  
+  rename(Recovery=Recov,
          Resistance=Resist)
 
 #### Response Diversity ####
@@ -33,27 +32,19 @@ realised.pert <- SpeciesStab %>%
   reframe(mean_spp_deltabm = mean(AUC.RR),
             var_spp_deltabm = var(AUC.RR),
             RD_diss = resp_div(AUC.RR, sign_sens = FALSE),
-            RD_div = resp_div(AUC.RR, sign_sens = TRUE),
-            mean_abs_spp_deltabm = mean(abs(AUC.RR)),
-            var_abs_spp_deltabm = var(abs(AUC.RR)),
-            RD_abs_diss = resp_div(abs(AUC.RR), sign_sens = FALSE),
-            RD_abs_div = resp_div(abs(AUC.RR), sign_sens = TRUE)) %>%
-  ungroup()%>%
-  gather(mean_spp_deltabm,var_spp_deltabm,RD_diss,RD_div, mean_abs_spp_deltabm,var_abs_spp_deltabm,RD_abs_div,RD_abs_diss,key = 'RD.metric', value = 'RD.value') 
-
+            RD_div = resp_div(AUC.RR, sign_sens = TRUE)) %>%
+  ungroup()
 #### Community Stability and RD ####
 
 ##### Plot - Sum Community Stability ####
-AllStab <- merge(realised.pert,ComStab, by = c('caseID', 'resp.cat')) %>%
-  filter(!str_detect(RD.metric,'abs' ))
+AllStab <- merge(realised.pert,ComStab, by = c('caseID')) 
 str(AllStab)
 
 #label grid
 labeller <- c(mean_spp_deltabm = 'Mean Realised Response', RD_diss = 'Response Dissimilarity', RD_div = 'Response Divergence')
 
 P_Fig4a <- AllStab %>%
-  filter(!str_detect(RD.metric,'abs' ) & RD.metric == 'mean_spp_deltabm' ) %>%
-  ggplot(aes(x = RD.value, y = Deltabm.Tot))+
+  ggplot(aes(x = mean_spp_deltabm, y = AUC.delatbm.tot))+
   geom_hline(yintercept = 0)+  #  stat_poly_eq()+
   geom_point(alpha = 0.8, size = 2, color = '#F8766D')+
   labs(x = 'Mean Realised Response', y = 'OEV')+
@@ -67,8 +58,7 @@ P_Fig4a
 
 
 P_Fig4b <- AllStab %>%
-  filter(!str_detect(RD.metric,'abs' ) & RD.metric == 'RD_diss') %>%
-  ggplot(aes(x = RD.value, y = Deltabm.Tot))+
+  ggplot(aes(x = RD_diss, y = AUC.delatbm.tot))+
   geom_hline(yintercept = 0)+  #  stat_poly_eq()+
   geom_point(alpha = 0.8, size = 2, color = '#00BA38')+
   labs(x = 'Realised Response Dissimilarity', y = 'OEV')+
@@ -81,8 +71,7 @@ P_Fig4b <- AllStab %>%
 P_Fig4b
 
 P_Fig4c <- AllStab %>%
-  filter(!str_detect(RD.metric,'abs' ) & RD.metric == 'RD_div') %>%
-  ggplot(aes(x = RD.value, y = Deltabm.Tot))+
+  ggplot(aes(x = RD_div, y = AUC.delatbm.tot))+
   geom_hline(yintercept = 0)+  #  stat_poly_eq()+
   geom_point(alpha = 0.8, size = 2, color = '#619CFF')+
   labs(x = 'Realised Response Divergence', y = 'OEV')+
@@ -94,25 +83,19 @@ P_Fig4c <- AllStab %>%
 P_Fig4c
 
 plot_grid(P_Fig4a, P_Fig4b, P_Fig4c, ncol = 3, labels = c('(a)', '(b)', '(c)'))
-ggsave(plot = last_plot(), file = here('MetaMultistab/output/Fig4_RealisedResponses_OEV.png'), width = 10, height = 3.5)
+ggsave(plot = last_plot(), file = here('output/Fig4_RealisedResponses_OEV.png'), width = 10, height = 3.5)
 
 
 #### START Meta-Analysis ####
 
-#libraries we need
-library(metafor)
-library(broom)
 
 ## look at Effect sizes 
 summary(AllStab)
 names(AllStab)
 
-metadata <- AllStab %>%
-  filter(!str_detect(RD.metric, 'abs'))%>%
-  spread(key = RD.metric, value = RD.value) 
-
+metadata <- AllStab 
 setdiff(AllStab$caseID,metadata$caseID)
-hist(metadata$OEV)
+hist(metadata$AUC.delatbm.tot)
 unique(metadata$studyID)
 
 metadata <- filter(metadata, resp.cat !=  "contribution to production")
@@ -124,7 +107,7 @@ names(metadata)
 
 
 #m0
-m0<-rma.mv(Deltabm.Tot,unweighted,
+m0<-rma.mv(AUC.delatbm.tot,unweighted,
                       mods = ~mean_spp_deltabm+RD_diss+RD_div,
                       random = ~ 1 | caseID,
                       method="REML",data=metadata)
@@ -153,16 +136,15 @@ ggplot(., aes(x = estimate, y = mods, color = mods))+
         axis.title.x=element_text(size=14,face="plain",colour="black",vjust=0),axis.text.x=element_text(size=12,colour="black"),
         panel.border=element_rect(colour="black",linewidth=1.5),
         legend.position = 'none')
-ggsave(plot=last_plot(), file = here('~/Desktop/phD/Meta_Multistab/Metamultistab/output/Forestplot_gg.pdf'), width = 6, height = 4)
+ggsave(plot=last_plot(), file = here('output/Forestplot_gg.pdf'), width = 6, height = 4)
 
 
 
 
 #### Appendix: Stability Metrics ####
-
-Metrics <- AllStab %>%
-  filter(!str_detect(RD.metric,'abs' ) & RD.metric != 'var_spp_deltabm')
-
+names(com.stab.MA.all)
+Metrics<-AllStab %>%
+  pivot_longer(cols = c(RD_diss, RD_div, mean_spp_deltabm), names_to = 'RD.metric', values_to = 'RD.value')
 Metrics$RD.metric<- factor(Metrics$RD.metric, levels = c( 'mean_spp_deltabm','RD_diss','RD_div'))
 
 labeller <- c(mean_spp_deltabm = 'Mean Realised Response', RD_diss = 'Realised Response Dissimilarity', RD_div = 'Realised Response Divergence')
@@ -206,7 +188,7 @@ p4<-Metrics %>%
 p4
 
 plot_grid(p2,p3,p4, ncol = 1, labels = c('(a)', '(b)', '(c)'))
-ggsave(plot = last_plot(), file= here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/Appendix_FigS_SumStabilityMetric.png'), width = 7, height = 8)
+ggsave(plot = last_plot(), file= here('output/Appendix_FigS_SumStabilityMetric.png'), width = 7, height = 8)
 
 
 
