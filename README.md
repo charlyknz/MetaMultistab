@@ -15,4 +15,4 @@ Helmut Hillebrand: 0000-0001-7449-1613, helmut.hillebrand@uni-oldenburg.de.
 *corresponding author
 
 ### Notes:
-Raw data for analysis can be found on Dryad.
+Raw data for analysis can be found on Figshare.
