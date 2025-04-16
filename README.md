@@ -15,4 +15,4 @@ Helmut Hillebrand: 0000-0001-7449-1613, helmut.hillebrand@uni-oldenburg.de.
 *corresponding author
 
 ### Notes:
-Raw data for analysis can be found on Figshare and must be stored in a folder labelled "Data".
+Raw data for analysis can be found on Figshare https://doi.org/10.6084/m9.figshare.28803887.v1 and must be stored in a folder labelled "Data".
