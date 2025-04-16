@@ -83,7 +83,7 @@ P_Fig4c <- AllStab %>%
 P_Fig4c
 
 plot_grid(P_Fig4a, P_Fig4b, P_Fig4c, ncol = 3, labels = c('(a)', '(b)', '(c)'))
-ggsave(plot = last_plot(), file = here('output/Fig4_RealisedResponses_OEV.png'), width = 10, height = 3.5)
+ggsave(plot = last_plot(), file = here('output/Fig4_RealisedResponses_OEV.tiff'), width = 10, height = 3.5)
 
 
 #### START Meta-Analysis ####
