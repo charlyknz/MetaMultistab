@@ -9,17 +9,16 @@ library(GGally)
 library(ggpubr)
 
 ### to start the analysis please download the meta-analysis data on figshare and store in data folder###
-dir.create(here('Data')) 
+#dir.create(here('Data')) 
 
 ### store output ###
-dir.create(here('output')) 
+#dir.create(here('output')) 
 
 #### import data ####
-study <- read_excel("Data/Multistab_species_data.xlsx") %>%
-  select(-c(35)) 
+study <- read_excel("Data/Multistab_species_data_repro.xlsx") 
 names(study)
 
-rawData <- read_excel("Data/Multistab_species_data.xlsx", 
+rawData <- read_excel("Data/Multistab_species_data_repro.xlsx", 
                       sheet = "species data")
 
 allData <- study%>%
@@ -46,7 +45,7 @@ allData$Con.M[(allData$Con.M <0)]<-0
 allData$Dist.M[(allData$Dist.M <0)]<-0
 
 response <- allData %>%
-  select(caseID, studyID, spec.inf, comment.x,  system, lat, long, organism, duration, differentiation,dist.cat,open, 
+  select(caseID, studyID, spec.inf, organism, system, lat, long, duration, differentiation, 
          species, species_specification,func,resp, resp.cat,DAY, RD,Con.M, Dist.M,Con.N, Dist.N, Dist.SD, Con.SD)%>%
   mutate(dummyRR = Con.M + Dist.M) %>% 
   filter(dummyRR != 0) %>%##take out those rows where biomass is 0 in both treatment (Biomass) + control (con.bio)
@@ -62,7 +61,7 @@ response <- allData %>%
          deltabm.tot = (dist.tot - con.tot)/(dist.tot+con.tot)) %>%
   mutate(USI = paste(caseID, species,  sep = "_"))  %>%
   filter(resp.cat != "contribution to production") %>%
-  distinct(caseID, studyID, spec.inf, comment.x,  system, lat, long, organism, duration, differentiation,dist.cat,open, species, species_specification,func,resp, resp.cat,DAY, RD,Con.M, Dist.M,Con.N, Dist.N,
+  distinct(caseID, studyID, spec.inf, organism, system, lat, long, duration, differentiation, species, species_specification,func,resp, resp.cat,DAY, RD,Con.M, Dist.M,Con.N, Dist.N,
            deltabm.tot,LRR,RR,delta.pi,con.pi,dist.tot, con.tot,dist.pi,USI)
 
 
@@ -71,14 +70,6 @@ response$delta.pi[is.infinite(response$delta.pi)]<-NA
 response$RR[is.infinite(response$RR)]<-NA
 response$RR[response$RR == 'NaN']<-NA
 hist(response$RR)
-
-
-## check if meta analysis mods are not NA
-which(is.na(response$duration))
-which(is.na(response$open))
-which(is.na(response$resp.cat))
-which(is.na(response$dist.cat))
-
 
 #### AUC Loop species stability ####
 USI <- response$USI #unique identifier
@@ -102,7 +93,7 @@ for(i in 1:length(USI)){
     mean.RR <- mean(temp$RR, na.rm = T)
     sum.con <- sum(temp$Con.M)
      stab.auc<-rbind(stab.auc,
-                    tibble(temp[1,c(1:17)],
+                    tibble(temp[1,c(1:14)],
                            AUC.RR ,
                            AUC.pi ,
                            con.pi,
@@ -119,7 +110,7 @@ unique(stab.auc$caseID)
 str(stab.auc)
 
 data.plot <- stab.auc %>%
-  distinct(caseID, studyID,system, lat, organism, duration, dist.cat, open, species, resp.cat, sum.con,AUC.RR,  AUC.pi, con.pi, mean.delta.pi,mean.RR)%>%
+  distinct(caseID, studyID,system, lat, organism,duration, species, resp.cat, sum.con,AUC.RR,  AUC.pi, con.pi, mean.delta.pi,mean.RR)%>%
   filter(resp.cat %in% c('abundance', 'biomass') ) %>%
   ungroup() %>%
   drop_na(AUC.pi)%>% 
