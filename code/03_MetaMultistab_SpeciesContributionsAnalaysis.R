@@ -1,5 +1,6 @@
-#### R script for meta analysis ####
+#### R script for additional analysis exploring species contributions to stability (Kunze et al. 2025 in Ecological Monographs)#
 
+#packages
 library(tidyverse)
 library(readxl)
 library(here)
@@ -13,26 +14,15 @@ library(ggpmisc)
 #### import data ####
 
 # species stability
-SpeciesStab <- read_csv('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/SpeciesStabilities.csv')%>%  select(-'...1')
+SpeciesStab <- read_csv('Data/SpeciesStabilities.csv')
 
 names(SpeciesStab)
 unique(SpeciesStab$organism)
 
 #### MA - species contributions ####
-sppMA <- SpeciesStab
-sppMA$organism[sppMA$organism== 'meiofauna']<- 'invertebrate'
-sppMA$organism[sppMA$organism== 'macroinvertebrate']<- 'invertebrate'
-sppMA$organism[sppMA$organism== 'beetle']<- 'invertebrate'
-sppMA$organism[sppMA$organism== 'Copepod']<- 'zooplankton'
-sppMA$organism[sppMA$organism== 'Cladoceran']<- 'zooplankton'
-sppMA$organism[sppMA$organism== 'macrophytes']<- 'plant'
-sppMA$organism[sppMA$organism== 'invertebrates']<- 'invertebrate'
-sppMA$organism[sppMA$organism== 'fish']<- 'vertebrate'
-sppMA$organism[sppMA$organism== 'vertebrates']<- 'vertebrate'
-
 
 #### AUC plot ####
-raw <-ggplot(sppMA, aes(x=AUC.pi,y=AUC.RR, col=system))+
+raw <-ggplot(SpeciesStab, aes(x=AUC.pi,y=AUC.RR, col=system))+
   geom_hline(yintercept=0, colour="grey")+
   geom_vline(xintercept=0, colour="grey")+
   geom_point(alpha=0.8, size = 2)+
@@ -49,18 +39,18 @@ raw <-ggplot(sppMA, aes(x=AUC.pi,y=AUC.RR, col=system))+
   theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank())+
   theme(plot.margin=unit(c(0.1,0.9,0.1,0.1),"cm"))
 raw
-ggsave(plot = raw, file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/AUC.RRdeltaPi.tiff'), width = 6, height = 6)
+ggsave(plot = raw, file = here('output/AUC.RRdeltaPi.tiff'), width = 6, height = 6)
 
 
 
-
+#### Unweighted MA exploring species contributions ####
 # unweighted MA requires column 1
-sppMA$unweighted<-1
+SpeciesStab$unweighted<-1
 
 M0<-rma.mv(AUC.RR,unweighted,
            mods = ~organism+system+dist.cat+open+resp.cat+abs(lat),
            random = ~ 1 | caseID,
-           method="REML",data=sppMA)
+           method="REML",data=SpeciesStab)
 
 summary(M0) 
 
@@ -79,6 +69,8 @@ mutate(moderators = str_replace(mods, 'organism', 'organism:'),
   
 model.output$moderators[model.output$moderators == 'intrcpt']<-'intercept'
 
+
+##plot results
 A <- ggplot(model.output, aes(x = estimate, y = moderators, color = moderators))+
   geom_vline(xintercept = 0)+
   labs(y = 'Factor', x = 'Estimate', title = 'Absolute Contribution to Stability')+
@@ -134,7 +126,7 @@ B<- ggplot(model.output.pi, aes(x = estimate, y = moderators))+
         panel.grid.minor=element_blank())
 
 plot_grid(A, B, labels = c('(a)', '(b)'), ncol = 2)
-ggsave(plot = last_plot(), file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/Significancetest.tiff'), width = 12, height = 5)
+ggsave(plot = last_plot(), file = here('output/Significancetest.tiff'), width = 12, height = 5)
 
 
 ### forest ###

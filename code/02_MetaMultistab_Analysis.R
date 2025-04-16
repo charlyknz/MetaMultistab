@@ -12,9 +12,12 @@ library(metafor)
 
 
 #### import data ####
+#data are created in 01. Please run 
+#source(here('code/01_MetaMultistab_createAUCdata.R'))
 
 # species stability
 SpeciesStab <- read_csv('Data/SpeciesStabilities.csv')
+names(SpeciesStab)
 
 # community stability
 ComStab <- read_csv('Data/CommunityStabilities.csv')%>%  
@@ -23,10 +26,10 @@ ComStab <- read_csv('Data/CommunityStabilities.csv')%>%
 
 #### Response Diversity ####
 
+#adjust the path here to access the repsonse diversity R project and use functions
 source(here("~/Desktop/phD/Meta_Multistab/response-diversity-pulse-pert/R/0-functions/Ross_et_al_functions.R"))
 
-names(SpeciesStab)
-
+#calculate RD metrics
 realised.pert <- SpeciesStab %>%
   group_by(caseID, resp.cat) %>%
   reframe(mean_spp_deltabm = mean(AUC.RR),
@@ -34,6 +37,7 @@ realised.pert <- SpeciesStab %>%
             RD_diss = resp_div(AUC.RR, sign_sens = FALSE),
             RD_div = resp_div(AUC.RR, sign_sens = TRUE)) %>%
   ungroup()
+
 #### Community Stability and RD ####
 
 ##### Plot - Sum Community Stability ####
@@ -87,7 +91,6 @@ ggsave(plot = last_plot(), file = here('output/Fig4_RealisedResponses_OEV.tiff')
 
 
 #### START Meta-Analysis ####
-
 
 ## look at Effect sizes 
 summary(AllStab)

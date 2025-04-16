@@ -8,6 +8,12 @@ library(cowplot)
 library(GGally)
 library(ggpubr)
 
+### to start the analysis please download the meta-analysis data on figshare and store in data folder###
+dir.create(here('Data')) 
+
+### store output ###
+dir.create(here('output')) 
+
 #### import data ####
 study <- read_excel("Data/Multistab_species_data.xlsx") %>%
   select(-c(35)) 
