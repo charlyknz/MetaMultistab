@@ -9,7 +9,7 @@ library(GGally)
 library(ggpubr)
 library(ggpmisc)
 library(metafor)
-
+library(readxl)
 
 #### import data ####
 #data are created in 01. Please run 
@@ -22,7 +22,8 @@ names(SpeciesStab)
 # community stability
 ComStab <- read_csv('Data/CommunityStabilities.csv')%>%  
   rename(Recovery=Recov,
-         Resistance=Resist)
+         Resistance=Resist,
+         Resilience = resil.lm.RD) 
 
 #### Response Diversity ####
 
@@ -31,8 +32,8 @@ source(here("~/Desktop/phD/Meta_Multistab/response-diversity-pulse-pert/R/0-func
 
 #calculate RD metrics
 realised.pert <- SpeciesStab %>%
-  group_by(caseID, resp.cat) %>%
-  reframe(mean_spp_deltabm = mean(AUC.RR),
+  group_by(caseID, studyID,organism,resp.cat) %>%
+  reframe(mean_spp_deltabm = mean(AUC.RR, na.rm = T),
             var_spp_deltabm = var(AUC.RR),
             RD_diss = resp_div(AUC.RR, sign_sens = FALSE),
             RD_div = resp_div(AUC.RR, sign_sens = TRUE)) %>%
@@ -41,9 +42,9 @@ realised.pert <- SpeciesStab %>%
 #### Community Stability and RD ####
 
 ##### Plot - Sum Community Stability ####
-AllStab <- merge(realised.pert,ComStab, by = c('caseID')) 
+AllStab <- left_join(realised.pert,ComStab, by = c('caseID', "resp.cat", "organism")) 
 str(AllStab)
-
+unique(AllStab$caseID)
 #label grid
 labeller <- c(mean_spp_deltabm = 'Mean Realised Response', RD_diss = 'Response Dissimilarity', RD_div = 'Response Divergence')
 
@@ -90,6 +91,45 @@ plot_grid(P_Fig4a, P_Fig4b, P_Fig4c, ncol = 3, labels = c('(a)', '(b)', '(c)'))
 ggsave(plot = last_plot(), file = here('output/Fig4_RealisedResponses_OEV.tiff'), width = 10, height = 3.5)
 
 
+P_Corr4a <- AllStab %>%
+  ggplot(aes(x = mean_spp_deltabm, y = RD_div))+
+  geom_point(alpha = 0.8, size = 2)+
+  labs(x = 'Mean Realised Response',y = 'Realised Response Divergence')+
+  # facet_wrap(~RD.metric, scale = 'free_x', labeller = labeller(RD.metric = labeller))+
+  theme_bw()+
+  theme(axis.title.y=element_text(size=12, face="plain", colour="black",vjust=0.3),axis.text.y=element_text(size=10,face="plain",colour="black",angle=0,hjust=0.4))+
+  theme(axis.title.x=element_text(size=12,face="plain",colour="black",vjust=0),axis.text.x=element_text(size=10,face="plain",colour="black"))+
+  theme(legend.position = 'none')
+
+P_Corr4a
+
+
+P_Corr4b <- AllStab %>%
+  ggplot(aes(y = RD_diss, x = mean_spp_deltabm))+
+  geom_point(alpha = 0.8, size = 2)+
+  labs(y = 'Realised Response Dissimilarity', y = 'OEV')+
+  # facet_wrap(~RD.metric, scale = 'free_x', labeller = labeller(RD.metric = labeller))+
+  theme_bw()+
+  theme(axis.title.y=element_text(size=12, face="plain", colour="black",vjust=0.3),axis.text.y=element_text(size=10,face="plain",colour="black",angle=0,hjust=0.4))+
+  theme(axis.title.x=element_text(size=12,face="plain",colour="black",vjust=0),axis.text.x=element_text(size=10,face="plain",colour="black"))+
+  theme(legend.position = 'none')
+
+P_Corr4b
+
+P_Corr4c <- AllStab %>%
+  ggplot(aes(y = RD_div, x = RD_diss))+
+  geom_hline(yintercept = 0)+  #  stat_poly_eq()+
+  geom_point(alpha = 0.8, size = 2)+
+  labs(y = 'Realised Response Divergence', x = 'Realised Response Dissimilarity')+
+  #facet_wrap(~RD.metric, scale = 'free_x', labeller = labeller(RD.metric = labeller))+
+  theme_bw()+
+  theme(axis.title.y=element_text(size=12, face="plain", colour="black",vjust=0.3),axis.text.y=element_text(size=10,face="plain",colour="black",angle=0,hjust=0.4))+
+  theme(axis.title.x=element_text(size=12,face="plain",colour="black",vjust=0),axis.text.x=element_text(size=10,face="plain",colour="black"))+
+  theme(legend.position = 'none')
+P_Corr4c
+
+plot_grid(P_Corr4a, P_Corr4b, P_Corr4c, ncol = 3, labels = c('(a)', '(b)', '(c)'))
+
 #### START Meta-Analysis ####
 
 ## look at Effect sizes 
@@ -100,6 +140,7 @@ metadata <- AllStab
 setdiff(AllStab$caseID,metadata$caseID)
 hist(metadata$AUC.delatbm.tot)
 unique(metadata$studyID)
+unique(metadata$caseID)
 
 metadata <- filter(metadata, resp.cat !=  "contribution to production")
 
@@ -108,13 +149,42 @@ metadata$unweighted<-1
 names(metadata)
 
 
-
+unique(metadata$caseID)
 #m0
 m0<-rma.mv(AUC.delatbm.tot,unweighted,
                       mods = ~mean_spp_deltabm+RD_diss+RD_div,
                       random = ~ 1 | caseID,
                       method="REML",data=metadata)
 summary(m0) 
+
+#check for correlation index vif
+vif(m0)
+
+#check residulas
+plot(fitted(m0))
+plot(residuals(m0))
+
+par(mfrow=c(1,3))
+plot(fitted(m0), resid(m0),
+     xlab = "Fitted values",
+     ylab = "Residuals",
+     main = "Residuals vs Fitted")
+abline(h = 0, lty = 2)
+lines(lowess(fitted(m0), resid(m0)), col = "red")
+
+qqnorm(resid(m0)); qqline(resid(m0))
+hist(resid(m0), breaks=20)
+
+# calculate R2
+(sum(m0$sigma2) - sum(m0$sigma2)) / sum(m0$sigma2)
+
+plot(metadata$mean_spp_deltabm)
+plot(metadata$RD_diss)
+plot(metadata$RD_div)
+
+
+ggscatter(metadata, x = "studyID", y = "mean_spp_deltabm")
+ggscatter(metadata, x = "RD_diss", y = "RD_div", cor.coef = T, cor.method = "spearman")
 
 ModelResults <- tibble(estimate = m0$b, ci.lb = m0$ci.lb, ci.ub = m0$ci.ub, pvalue = as.numeric(m0$pval), mods = c('intercept','Mean response', 'RD dissimilarity', 'RD divergence'))
 str(ModelResults)
@@ -139,13 +209,13 @@ ggplot(., aes(x = estimate, y = mods, color = mods))+
         axis.title.x=element_text(size=14,face="plain",colour="black",vjust=0),axis.text.x=element_text(size=12,colour="black"),
         panel.border=element_rect(colour="black",linewidth=1.5),
         legend.position = 'none')
-ggsave(plot=last_plot(), file = here('output/Forestplot_gg.pdf'), width = 6, height = 4)
+#ggsave(plot=last_plot(), file = here('output/Forestplot_gg.pdf'), width = 6, height = 4)
 
 
+# look into other 
 
 
 #### Appendix: Stability Metrics ####
-names(com.stab.MA.all)
 Metrics<-AllStab %>%
   pivot_longer(cols = c(RD_diss, RD_div, mean_spp_deltabm), names_to = 'RD.metric', values_to = 'RD.value')
 Metrics$RD.metric<- factor(Metrics$RD.metric, levels = c( 'mean_spp_deltabm','RD_diss','RD_div'))
@@ -166,7 +236,7 @@ p2
 #ggsave(plot=last_plot(), file = here('~/Desktop/phD/Meta_Multistab/MetaMultistab/output/ResponseTraits_Resist_sum.png'), width =  6, height = 5)
 
 p3<-Metrics %>%
-  ggplot(., aes ( y = Recovery, x = RD.value, color = RD.metric))+
+  ggplot(., aes ( y = Resilience , x = RD.value, color = RD.metric))+
   scale_color_manual(values = c('#F8766D','#00BA38','#619CFF'))+
   labs(x='')+
   geom_hline(yintercept = 0)+
@@ -179,7 +249,7 @@ p3
 
 
 p4<-Metrics %>%
-  ggplot(., aes ( y = CV, x = RD.value, color = RD.metric))+
+  ggplot(., aes ( y = Recovery, x = RD.value, color = RD.metric))+
   scale_color_manual(values = c('#F8766D','#00BA38','#619CFF'))+
   labs(x='')+
   geom_hline(yintercept = 0)+
@@ -190,8 +260,32 @@ p4<-Metrics %>%
   theme(legend.position = 'none')
 p4
 
-plot_grid(p2,p3,p4, ncol = 1, labels = c('(a)', '(b)', '(c)'))
-ggsave(plot = last_plot(), file= here('output/Appendix_FigS_SumStabilityMetric.png'), width = 7, height = 8)
 
 
+plot_grid(p2,p3,p4, ncol = 1, labels = c('(a)', '(b)', '(c)', "(d)"))
+ggsave(plot = last_plot(), file= here('output/Appendix_FigS_SumStabilityMetric.png'), width = 7, height = 7)
 
+
+m1<-rma.mv(Resistance,unweighted,
+           mods = ~mean_spp_deltabm+RD_diss+RD_div,
+           random = ~ 1 | caseID,
+           method="REML",data=metadata)
+summary(m1) 
+
+m2<-rma.mv(Resilience,unweighted,
+           mods = ~mean_spp_deltabm+RD_diss+RD_div,
+           random = ~ 1 | caseID,
+           method="REML",data=metadata)
+summary(m2) 
+
+m3<-rma.mv(Recovery,unweighted,
+           mods = ~mean_spp_deltabm+RD_diss+RD_div,
+           random = ~ 1 | caseID,
+           method="REML",data=metadata)
+summary(m3) 
+
+m4<-rma.mv(CV,unweighted,
+           mods = ~mean_spp_deltabm+RD_diss+RD_div,
+           random = ~ 1 | caseID,
+           method="REML",data=metadata)
+summary(m4) 
