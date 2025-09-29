@@ -36,10 +36,10 @@ rawData <- read_excel("Data/Multistab_species_data_repro.xlsx",
 str(rawData)
 
 #new studies since 2017
-dataSpp <- read_excel("Data/ELE_Review_MetaMultistab_since2017.xlsx", 
+dataSpp <- read_excel("Data/MetaMultistab_since2017.xlsx", 
                                  sheet = "species_data")
 
-meta <- read_excel("Data/ELE_Review_MetaMultistab_since2017.xlsx", 
+meta <- read_excel("Data/MetaMultistab_since2017.xlsx", 
                       sheet = "meta") %>% 
   mutate(lat = as.numeric(lat))
 unique(meta$studyID)
