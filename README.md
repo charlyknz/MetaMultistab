@@ -1,5 +1,6 @@
 # MetaMultistab
-R code for the meta analysis in "Species interactions determine the importance of response diversity for community stability to pulse disturbances"
+R code for the meta analysis in "Species interactions determine the importance of response diversity for community stability to pulse disturbances" https://doi.org/10.22541/au.174498373.31851247/v1
+
   
 ## Running title: Response diversity under pulse disturbance 
 
