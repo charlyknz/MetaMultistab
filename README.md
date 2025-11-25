@@ -4,7 +4,7 @@ R code for the meta analysis in "Species interactions determine the importance o
 ## Running title: Response diversity under pulse disturbance 
 
 ### Author list:
-Charlotte Kunze: 0000-0002-1130-7417, charlotte.kunze@gmx.de *. 
+Charlotte Kunze: 0000-0002-1130-7417, charlotte.kunze@idiv.de *. 
 
 Owen L. Petchey: 0000-0002-7724-1633, owen.petchey@uzh.ch. 
 
@@ -15,4 +15,4 @@ Helmut Hillebrand: 0000-0001-7449-1613, helmut.hillebrand@uni-oldenburg.de.
 *corresponding author
 
 ### Notes:
-Raw data for analysis can be found on Figshare https://doi.org/10.6084/m9.figshare.28803887.v1 and must be stored in a folder labelled "Data".
+Raw data for analysis can be found on Figshare https://doi.org/10.6084/m9.figshare.28803887.v2 and must be stored in a folder labelled "Data".
