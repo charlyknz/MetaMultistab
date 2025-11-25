@@ -184,7 +184,7 @@ for(i in 1:length(USIc)){
                     type = c("linear"),absolutearea = TRUE)
     AUC.delatbm.tot  <-auc(temp$RD, temp$deltabm.tot, from = min(temp$RD, na.rm = TRUE), to = max(temp$RD, na.rm = TRUE),
                                type = c("linear"),absolutearea = FALSE)
-    CV<- mean(temp$deltabm.tot, na.rm = T)/sd(temp$deltabm.tot, na.rm = T) # coefficient of variation
+    CV<- sd(temp$deltabm.tot, na.rm = T)/mean(temp$deltabm.tot, na.rm = T) # coefficient of variation
     com.stab<-rbind(com.stab,
                       data.frame(temp[1,c(1,5,6,8)],
                                  OEV,CV,AUC.delatbm.tot))

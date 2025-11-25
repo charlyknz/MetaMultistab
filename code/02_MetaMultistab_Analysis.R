@@ -221,6 +221,7 @@ Metrics<-AllStab %>%
 Metrics$RD.metric<- factor(Metrics$RD.metric, levels = c( 'mean_spp_deltabm','RD_diss','RD_div'))
 
 labeller <- c(mean_spp_deltabm = 'Mean Realised Response', RD_diss = 'Realised Response Dissimilarity', RD_div = 'Realised Response Divergence')
+Metrics$var <- 1/Metrics$CV
 
 p2<-Metrics %>%
   ggplot(., aes ( y = Resistance, x = RD.value, color = RD.metric))+
@@ -260,11 +261,23 @@ p4<-Metrics %>%
   theme(legend.position = 'none')
 p4
 
+p5<-Metrics %>%
+  ggplot(., aes ( y = (1/CV), x = RD.value, color = RD.metric))+
+  scale_color_manual(values = c('#F8766D','#00BA38','#619CFF'))+
+  labs(x='', y = "Temporal Stability")+
+  geom_hline(yintercept = 0)+
+  geom_point(size = 2, alpha = 0.8)+
+  facet_wrap(~RD.metric, scales='free_x', labeller = labeller(RD.metric = labeller))+
+  theme_bw()+
+  theme(panel.grid.major=element_blank(),panel.grid.minor=element_blank())+
+  theme(legend.position = 'none')
+p5
+
+plot_grid(p2,p3,p5,p4, ncol = 1, labels = c('(a)', '(b)', '(c)', "(d)"))
+ggsave(plot = last_plot(), file= here('output/Appendix_FigS_SumStabilityMetric.png'), width = 7, height = 9)
 
 
-plot_grid(p2,p3,p4, ncol = 1, labels = c('(a)', '(b)', '(c)', "(d)"))
-ggsave(plot = last_plot(), file= here('output/Appendix_FigS_SumStabilityMetric.png'), width = 7, height = 7)
-
+metadata$var <- 1/metadata$CV
 
 m1<-rma.mv(Resistance,unweighted,
            mods = ~mean_spp_deltabm+RD_diss+RD_div,
@@ -284,8 +297,9 @@ m3<-rma.mv(Recovery,unweighted,
            method="REML",data=metadata)
 summary(m3) 
 
-m4<-rma.mv(CV,unweighted,
+m4<-rma.mv(var,unweighted,
            mods = ~mean_spp_deltabm+RD_diss+RD_div,
            random = ~ 1 | caseID,
            method="REML",data=metadata)
 summary(m4) 
+
